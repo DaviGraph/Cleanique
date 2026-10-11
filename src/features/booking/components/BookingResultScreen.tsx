@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { CreateBookingResponse } from '../types';
-import { SparklesIcon, ShieldCheckIcon, ClockIcon } from './Icons';
+import { PaymentInstructionsStep } from './PaymentInstructionsStep';
+import { SparklesIcon, ShieldCheckIcon } from './Icons';
 
 interface BookingResultScreenProps {
   booking: CreateBookingResponse;
@@ -13,17 +14,20 @@ export const BookingResultScreen: React.FC<BookingResultScreenProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
+  // If this is a fixed-price package booking, show the real Payment Instructions & Receipt Upload flow!
+  if (!booking.is_quote) {
+    return <PaymentInstructionsStep booking={booking} />;
+  }
+
+  // Quote Requested Result Screen
   const handleCopyReference = () => {
     navigator.clipboard?.writeText(booking.reference);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 2000);
   };
-
-  const isQuote = booking.is_quote;
 
   return (
     <div className="cq-result-card">
-      {/* Status Header */}
       <div className="cq-result-header">
         <div className="cq-result-icon-badge">
           <SparklesIcon size={32} color="#102A29" />
@@ -31,20 +35,16 @@ export const BookingResultScreen: React.FC<BookingResultScreenProps> = ({
 
         <span className="cq-badge cq-badge-turquoise">Status: Pending Verification</span>
 
-        <h2 className="cq-result-title">
-          {isQuote ? 'Quote requested' : 'Payment instructions coming next'}
-        </h2>
+        <h2 className="cq-result-title">Quote requested</h2>
 
         <p className="cq-result-subtitle">
-          {isQuote
-            ? 'We have received your space specifications. Our team is calculating your custom assessment.'
-            : 'Your booking details have been registered. Below is your booking reference and amount due.'}
+          We have received your space specifications. Our operations team is assessing your
+          request and will reach out with a personalized quote.
         </p>
       </div>
 
-      {/* Booking Reference Box */}
       <div className="cq-reference-box">
-        <div className="cq-reference-label">Your Booking Reference</div>
+        <div className="cq-reference-label">Your Quote Reference</div>
         <div className="cq-reference-code-row">
           <span className="cq-reference-code">{booking.reference}</span>
           <button
@@ -52,95 +52,54 @@ export const BookingResultScreen: React.FC<BookingResultScreenProps> = ({
             onClick={handleCopyReference}
             className="cq-copy-btn"
             title="Copy Reference"
-            aria-label="Copy booking reference"
+            aria-label="Copy quote reference"
           >
             {copied ? '✓ Copied' : 'Copy'}
           </button>
         </div>
         <div className="cq-reference-note">
-          Keep this reference for payment verification and tracking your booking status.
+          Please keep this reference for tracking your inquiry status.
         </div>
       </div>
 
-      {/* Financials & Amounts for Fixed-Price Bookings */}
-      {!isQuote && booking.total_amount && booking.deposit_amount && (
-        <div className="cq-amount-due-card">
-          <h3 className="cq-amount-heading">Amount Due</h3>
-
-          <div className="cq-amount-grid">
-            <div className="cq-amount-item">
-              <span className="cq-amount-label">50% Deposit Required</span>
-              <span className="cq-amount-deposit">
-                ₦{booking.deposit_amount.toLocaleString()}
-              </span>
-              <span className="cq-amount-sub">Due upon payment instructions release</span>
-            </div>
-
-            <div className="cq-amount-item cq-amount-item-total">
-              <span className="cq-amount-label">Total Booking Amount</span>
-              <span className="cq-amount-total">
-                ₦{booking.total_amount.toLocaleString()}
-              </span>
-              <span className="cq-amount-sub">Remaining balance upon service delivery</span>
-            </div>
+      <div className="cq-amount-due-card">
+        <h3 className="cq-amount-heading">Inquiry Summary</h3>
+        <div className="cq-quote-details-box">
+          <div className="cq-quote-field">
+            <span className="cq-quote-field-label">Service:</span>
+            <span className="cq-quote-field-val">{booking.service_name}</span>
           </div>
-
-          <div className="cq-instructions-placeholder-box">
-            <div className="cq-instructions-icon">
-              <ClockIcon size={20} color="#2ECDBF" />
-            </div>
-            <div>
-              <div className="cq-instructions-title">Payment instructions coming next</div>
-              <div className="cq-instructions-text">
-                Cleanique bank transfer accounts and receipt upload functionality will be provided in
-                the upcoming phase. Your booking will be confirmed only after Cleanique verifies the payment.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quote summary card for quote requests */}
-      {isQuote && (
-        <div className="cq-amount-due-card">
-          <h3 className="cq-amount-heading">Quote Request Summary</h3>
-          <div className="cq-quote-details-box">
+          {booking.quoteDetails && (
             <div className="cq-quote-field">
-              <span className="cq-quote-field-label">Service:</span>
-              <span className="cq-quote-field-val">{booking.service_name}</span>
+              <span className="cq-quote-field-label">Space Details:</span>
+              <p className="cq-quote-field-text">{booking.quoteDetails}</p>
             </div>
-            {booking.quoteDetails && (
-              <div className="cq-quote-field">
-                <span className="cq-quote-field-label">Space Details:</span>
-                <p className="cq-quote-field-text">{booking.quoteDetails}</p>
-              </div>
-            )}
+          )}
+        </div>
+
+        <div className="cq-instructions-placeholder-box">
+          <div className="cq-instructions-icon">
+            <ShieldCheckIcon size={20} color="#2ECDBF" />
           </div>
-          <div className="cq-instructions-placeholder-box">
-            <div className="cq-instructions-icon">
-              <ShieldCheckIcon size={20} color="#2ECDBF" />
-            </div>
-            <div>
-              <div className="cq-instructions-title">Next Steps</div>
-              <div className="cq-instructions-text">
-                Our operations team will review your space details and reach out to {booking.customerPhone} with
-                a detailed schedule and price breakdown.
-              </div>
+          <div>
+            <div className="cq-instructions-title">What Happens Next</div>
+            <div className="cq-instructions-text">
+              A Cleanique operations coordinator will contact you at {booking.customerPhone} to verify
+              measurements, discuss specific requirements, and provide a full estimate before scheduling.
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Order Summary Metadata */}
       <div className="cq-booking-meta-card">
-        <h4 className="cq-meta-title">Booking Details</h4>
+        <h4 className="cq-meta-title">Client Details</h4>
         <dl className="cq-meta-list">
           <div className="cq-meta-row">
             <dt>Client Name</dt>
             <dd>{booking.customerName}</dd>
           </div>
           <div className="cq-meta-row">
-            <dt>Contact Phone</dt>
+            <dt>Phone Number</dt>
             <dd>{booking.customerPhone}</dd>
           </div>
           {booking.customerEmail && (
@@ -154,21 +113,9 @@ export const BookingResultScreen: React.FC<BookingResultScreenProps> = ({
             <dd>{booking.serviceAddress}</dd>
           </div>
           <div className="cq-meta-row">
-            <dt>Scheduled Date</dt>
+            <dt>Preferred Date</dt>
             <dd>{booking.scheduledDate}</dd>
           </div>
-          {booking.scheduledTime && (
-            <div className="cq-meta-row">
-              <dt>Preferred Window</dt>
-              <dd>{booking.scheduledTime}</dd>
-            </div>
-          )}
-          {booking.package_name && (
-            <div className="cq-meta-row">
-              <dt>Selected Package</dt>
-              <dd>{booking.package_name}</dd>
-            </div>
-          )}
         </dl>
       </div>
 
