@@ -104,7 +104,7 @@ const MOCK_SERVICES: Service[] = [
     category: 'residential',
     categoryLabel: 'Residential',
     description: 'Routine and package-based sanitization for rooms, bedsitters, self-contained units, and multi-bedroom apartments.',
-    pricingType: 'starting_at',
+    pricingType: 'fixed',
     displayPrice: 'From ₦20,000',
     badge: 'Fixed Packages Available',
     icon: 'home',
@@ -224,9 +224,16 @@ const MOCK_SERVICES: Service[] = [
  * All frontend components must read service data exclusively through this function.
  */
 export async function getServices(): Promise<Service[]> {
-  // Simulate network latency
   await new Promise((resolve) => setTimeout(resolve, 80));
   return [...MOCK_SERVICES];
+}
+
+/**
+ * Fetch a single service by ID.
+ */
+export async function getServiceById(id: string): Promise<Service | undefined> {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  return MOCK_SERVICES.find((s) => s.id === id);
 }
 
 /**
@@ -239,23 +246,80 @@ export async function getPackages(): Promise<Package[]> {
 }
 
 /**
+ * Fetch a single package by ID.
+ */
+export async function getPackageById(id: string): Promise<Package | undefined> {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  return MOCK_PACKAGES.find((p) => p.id === id);
+}
+
+/**
+ * Helper to generate reference formatted like CLQ-A1B2C3
+ */
+function generateReference(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `CLQ-${code}`;
+}
+
+/**
+ * Helper to generate fake access token
+ */
+function generateAccessToken(): string {
+  return `clq_tok_${Math.random().toString(36).substring(2, 10)}_${Date.now().toString(36)}`;
+}
+
+/**
  * Mock implementation of create_booking RPC.
- * Enforces security rule: Client never sends prices; prices are determined server-side.
+ * Enforces security rule: Client never sends prices; prices are determined server-side from MOCK_PACKAGES.
  */
 export async function createBooking(
   payload: CreateBookingPayload
 ): Promise<CreateBookingResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
-  if (!payload.customerName || !payload.customerEmail || !payload.serviceAddress) {
-    throw new Error('Please fill in all required booking details.');
+  if (!payload.customerName || !payload.customerPhone || !payload.serviceAddress || !payload.scheduledDate) {
+    throw new Error('Please fill in all required booking details (Name, Phone, Address, Date).');
   }
 
-  const generatedId = `bk_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+  const reference = generateReference();
+  const accessToken = generateAccessToken();
+
+  const service = payload.serviceId
+    ? MOCK_SERVICES.find((s) => s.id === payload.serviceId)
+    : undefined;
+
+  const pkg = payload.packageId
+    ? MOCK_PACKAGES.find((p) => p.id === payload.packageId)
+    : undefined;
+
+  // Determine if this is a quote-based request or fixed package booking
+  const isQuote = !pkg || service?.pricingType === 'quote';
+
+  const totalAmount = pkg ? pkg.price : undefined;
+  const depositAmount = totalAmount ? Math.round(totalAmount * 0.5) : undefined;
 
   return {
-    booking_id: generatedId,
+    reference,
+    access_token: accessToken,
     booking_status: 'pending',
-    message: 'Booking request created successfully. Awaiting payment receipt verification.',
+    message: isQuote
+      ? 'Quote request submitted successfully. A Cleanique representative will assess your space details and contact you.'
+      : 'Booking request created successfully. Awaiting payment receipt verification.',
+    is_quote: isQuote,
+    total_amount: totalAmount,
+    deposit_amount: depositAmount,
+    service_name: service?.name || (pkg ? 'Residential Cleaning' : 'Custom Cleaning'),
+    package_name: pkg?.name,
+    scheduledDate: payload.scheduledDate,
+    scheduledTime: payload.scheduledTime,
+    serviceAddress: payload.serviceAddress,
+    customerName: payload.customerName,
+    customerPhone: payload.customerPhone,
+    customerEmail: payload.customerEmail,
+    quoteDetails: payload.quoteDetails,
   };
 }

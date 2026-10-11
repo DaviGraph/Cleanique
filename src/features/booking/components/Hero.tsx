@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { SparklesIcon, ShieldCheckIcon, ClockIcon, ArrowRightIcon } from './Icons';
 
 export const Hero: React.FC = () => {
@@ -24,10 +25,10 @@ export const Hero: React.FC = () => {
         </p>
 
         <div className="cq-hero-actions">
-          <a href="#packages" className="cq-btn cq-btn-primary cq-hero-btn">
-            Explore Residential Rates
+          <Link to="/book" className="cq-btn cq-btn-primary cq-hero-btn">
+            Book a Clean Now
             <ArrowRightIcon size={16} />
-          </a>
+          </Link>
           <a href="#services" className="cq-btn cq-btn-outline-white cq-hero-btn">
             Commercial & Custom Quotes
           </a>

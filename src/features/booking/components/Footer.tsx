@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { SparklesIcon } from './Icons';
 
 export const Footer: React.FC = () => {
@@ -25,23 +26,23 @@ export const Footer: React.FC = () => {
           <div className="cq-footer-links-col">
             <h4 className="cq-footer-heading">Residential Packages</h4>
             <ul className="cq-footer-links">
-              <li><a href="#packages">Single Room (₦20,000)</a></li>
-              <li><a href="#packages">Bedsitter (₦25,000)</a></li>
-              <li><a href="#packages">Self-Contained (₦35,000)</a></li>
-              <li><a href="#packages">Two-Bedroom (₦50,000)</a></li>
-              <li><a href="#packages">Three-Bedroom (₦65,000)</a></li>
+              <li><Link to="/book?package=pkg_single_room">Single Room (₦20,000)</Link></li>
+              <li><Link to="/book?package=pkg_bedsitter">Bedsitter (₦25,000)</Link></li>
+              <li><Link to="/book?package=pkg_self_contained">Self-Contained (₦35,000)</Link></li>
+              <li><Link to="/book?package=pkg_two_bedroom">Two-Bedroom (₦50,000)</Link></li>
+              <li><Link to="/book?package=pkg_three_bedroom">Three-Bedroom (₦65,000)</Link></li>
             </ul>
           </div>
 
           <div className="cq-footer-links-col">
             <h4 className="cq-footer-heading">Specialized & Quotes</h4>
             <ul className="cq-footer-links">
-              <li><a href="#services">Deep Cleaning</a></li>
-              <li><a href="#services">Move-in / Move-out</a></li>
-              <li><a href="#services">Post-Construction</a></li>
-              <li><a href="#services">Office & Corporate</a></li>
-              <li><a href="#services">Commercial Facilities</a></li>
-              <li><a href="#services">Dishwashing (From ₦3,000)</a></li>
+              <li><Link to="/book?service=srv_deep_clean">Deep Cleaning</Link></li>
+              <li><Link to="/book?service=srv_move_in_out">Move-in / Move-out</Link></li>
+              <li><Link to="/book?service=srv_post_construction">Post-Construction</Link></li>
+              <li><Link to="/book?service=srv_office">Office & Corporate</Link></li>
+              <li><Link to="/book?service=srv_commercial">Commercial Facilities</Link></li>
+              <li><Link to="/book?service=srv_dishwashing">Dishwashing (From ₦3,000)</Link></li>
             </ul>
           </div>
 

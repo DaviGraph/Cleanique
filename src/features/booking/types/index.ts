@@ -28,19 +28,33 @@ export interface Package {
 
 export interface CreateBookingPayload {
   customerName: string;
-  customerEmail: string;
   customerPhone: string;
+  customerEmail?: string;
   serviceId?: string;
   packageId?: string;
   serviceAddress: string;
   scheduledDate: string;
   scheduledTime?: string;
   notes?: string;
+  quoteDetails?: string;
   // NOTE: In accordance with AGENT_RULES.md, client NEVER submits prices.
 }
 
 export interface CreateBookingResponse {
-  booking_id: string;
+  reference: string; // e.g. "CLQ-A1B2C3"
+  access_token: string;
   booking_status: 'pending';
   message: string;
+  is_quote: boolean;
+  total_amount?: number;
+  deposit_amount?: number;
+  service_name: string;
+  package_name?: string;
+  scheduledDate: string;
+  scheduledTime?: string;
+  serviceAddress: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  quoteDetails?: string;
 }
