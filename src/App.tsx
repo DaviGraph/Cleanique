@@ -1,122 +1,133 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { getServices, getPackages } from './features/booking/lib/bookingApi';
+import type { Service, Package } from './features/booking/types';
+import { Navbar } from './features/booking/components/Navbar';
+import { Hero } from './features/booking/components/Hero';
+import { PackagesSection } from './features/booking/components/PackagesSection';
+import { ServicesSection } from './features/booking/components/ServicesSection';
+import { TrustSection } from './features/booking/components/TrustSection';
+import { Footer } from './features/booking/components/Footer';
+import { SparklesIcon } from './features/booking/components/Icons';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Active user selection for feedback
+  const [activeSelection, setActiveSelection] = useState<{
+    title: string;
+    detail: string;
+    type: 'package' | 'service';
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCleaniqueData() {
+      try {
+        setIsLoading(true);
+        // All data access strictly goes through bookingApi.ts
+        const [fetchedPackages, fetchedServices] = await Promise.all([
+          getPackages(),
+          getServices(),
+        ]);
+
+        if (isMounted) {
+          setPackages(fetchedPackages);
+          setServices(fetchedServices);
+          setError(null);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load services.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadCleaniqueData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSelectPackage = (pkg: Package) => {
+    setActiveSelection({
+      title: `${pkg.name} Package Selected`,
+      detail: `Rate: ${pkg.formattedPrice}. Booking form and scheduling will open in the next phase.`,
+      type: 'package',
+    });
+  };
+
+  const handleInquireService = (srv: Service) => {
+    setActiveSelection({
+      title: `${srv.name}`,
+      detail: `Pricing: ${srv.displayPrice}. Custom assessment inquiry will open in the next phase.`,
+      type: 'service',
+    });
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="cq-page-wrapper">
+      <Navbar />
 
-      <div className="ticks"></div>
+      <main>
+        <Hero />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {error ? (
+          <div className="cq-container" style={{ padding: '60px 0', textAlign: 'center' }}>
+            <p style={{ color: '#d9534f', fontWeight: 600 }}>{error}</p>
+          </div>
+        ) : (
+          <>
+            <PackagesSection
+              packages={packages}
+              isLoading={isLoading}
+              onSelectPackage={handleSelectPackage}
+            />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+            <ServicesSection
+              services={services}
+              isLoading={isLoading}
+              onInquireService={handleInquireService}
+            />
+
+            <TrustSection />
+          </>
+        )}
+      </main>
+
+      <Footer />
+
+      {/* Interactive Selection Notification */}
+      {activeSelection && (
+        <div className="cq-notice-banner" role="alert">
+          <div className="cq-notice-header">
+            <span className="cq-notice-title">
+              <SparklesIcon size={16} color="#2ECDBF" />
+              {activeSelection.title}
+            </span>
+            <button
+              type="button"
+              className="cq-notice-close"
+              onClick={() => setActiveSelection(null)}
+              aria-label="Dismiss notification"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="cq-notice-body">{activeSelection.detail}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
