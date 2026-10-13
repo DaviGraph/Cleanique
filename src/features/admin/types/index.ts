@@ -18,6 +18,7 @@ export interface AdminReceipt {
   filename: string;
   file_type: 'image' | 'pdf';
   file_size_formatted: string;
+  storage_path?: string;
   submitted_at: string;
 }
 
@@ -26,15 +27,16 @@ export interface TimelineEvent {
   title: string;
   description: string;
   timestamp: string;
-  type: 'created' | 'receipt' | 'verification' | 'quote' | 'status_change';
+  type: 'created' | 'receipt' | 'receipt_uploaded' | 'verification' | 'quote' | 'status_change';
 }
 
 export interface AdminBooking {
-  id: string; // reference string, e.g. "CLQ-P1V2W3"
+  id: string; // UUID
   reference: string;
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
+  customer_whatsapp?: string;
   service_id: string;
   service_name: string;
   package_name?: string;
@@ -43,6 +45,7 @@ export interface AdminBooking {
   scheduled_time?: string;
   notes?: string;
   quote_details?: string;
+  quote_message?: string;
   is_quote: boolean;
   total_amount?: number;
   deposit_amount?: number;
@@ -55,7 +58,14 @@ export interface AdminBooking {
 }
 
 export interface AdminSession {
+  id: string;
   email: string;
   role: 'admin';
   logged_in_at: string;
+}
+
+export interface CleaniqueSetting {
+  key: string;
+  value: string;
+  updated_at: string;
 }

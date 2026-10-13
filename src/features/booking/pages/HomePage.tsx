@@ -7,6 +7,7 @@ import { Hero } from '../components/Hero';
 import { PackagesSection } from '../components/PackagesSection';
 import { ServicesSection } from '../components/ServicesSection';
 import { TrustSection } from '../components/TrustSection';
+import { ContactSection } from '../components/ContactSection';
 import { Footer } from '../components/Footer';
 
 export const HomePage: React.FC = () => {
@@ -85,6 +86,8 @@ export const HomePage: React.FC = () => {
             />
 
             <TrustSection />
+
+            <ContactSection />
           </>
         )}
       </main>

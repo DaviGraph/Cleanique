@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import {
-  getBookingStatus,
-  updateMockBookingStatus,
-} from '../lib/bookingApi';
+import { getBookingStatus } from '../lib/bookingApi';
 import type { BookingStatusResponse, BookingStatus } from '../types';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { BankDetailsCard } from '../components/BankDetailsCard';
 import { ReceiptUpload } from '../components/ReceiptUpload';
-import { SparklesIcon, ShieldCheckIcon, ClockIcon } from '../components/Icons';
+import {
+  SparklesIcon,
+  ShieldCheckIcon,
+  ClockIcon,
+  PaperclipIcon,
+  CheckIcon,
+  RefreshCwIcon,
+} from '../components/Icons';
 
 export const BookingStatusPage: React.FC = () => {
   const { reference } = useParams<{ reference: string }>();
@@ -64,12 +68,6 @@ export const BookingStatusPage: React.FC = () => {
     }
   };
 
-  const handleStatusSwitch = (newStatus: BookingStatus) => {
-    if (!reference) return;
-    const updated = updateMockBookingStatus(reference, newStatus);
-    setBooking(updated);
-  };
-
   const handleCopyTrackingLink = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard?.writeText(window.location.href);
@@ -78,14 +76,15 @@ export const BookingStatusPage: React.FC = () => {
     }
   };
 
-  // Status badge styling helper
-  const getStatusBadgeClass = (status: BookingStatus) => {
+  const getStatusBadgeClass = (status: BookingStatus | string) => {
     switch (status) {
       case 'pending_payment':
         return 'cq-status-badge-payment';
       case 'pending_verification':
         return 'cq-status-badge-verification';
       case 'confirmed':
+        return 'cq-status-badge-confirmed';
+      case 'completed':
         return 'cq-status-badge-confirmed';
       case 'cancelled':
         return 'cq-status-badge-cancelled';
@@ -100,41 +99,6 @@ export const BookingStatusPage: React.FC = () => {
 
       <main className="cq-status-page-main">
         <div className="cq-container">
-          {/* Dev Mock Status Switcher */}
-          <div className="cq-dev-status-toolbar">
-            <span className="cq-dev-toolbar-title">🛠️ Dev Mode: Mock Status Switcher</span>
-            <div className="cq-dev-status-buttons">
-              <button
-                type="button"
-                className={`cq-dev-btn ${booking?.booking_status === 'pending_payment' ? 'is-active' : ''}`}
-                onClick={() => handleStatusSwitch('pending_payment')}
-              >
-                Awaiting payment
-              </button>
-              <button
-                type="button"
-                className={`cq-dev-btn ${booking?.booking_status === 'pending_verification' ? 'is-active' : ''}`}
-                onClick={() => handleStatusSwitch('pending_verification')}
-              >
-                Awaiting verification
-              </button>
-              <button
-                type="button"
-                className={`cq-dev-btn ${booking?.booking_status === 'confirmed' ? 'is-active' : ''}`}
-                onClick={() => handleStatusSwitch('confirmed')}
-              >
-                Confirmed
-              </button>
-              <button
-                type="button"
-                className={`cq-dev-btn ${booking?.booking_status === 'cancelled' ? 'is-active' : ''}`}
-                onClick={() => handleStatusSwitch('cancelled')}
-              >
-                Cancelled
-              </button>
-            </div>
-          </div>
-
           {isLoading ? (
             <div className="cq-loading-state">
               <div className="cq-spinner" />
@@ -143,6 +107,9 @@ export const BookingStatusPage: React.FC = () => {
           ) : error || !booking ? (
             <div className="cq-status-card cq-status-error-card">
               <p className="cq-error-msg">{error || 'Booking record could not be found.'}</p>
+              <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '8px' }}>
+                Make sure you're using the full tracking link from your confirmation page.
+              </p>
               <Link to="/book" className="cq-btn cq-btn-secondary" style={{ marginTop: '16px' }}>
                 Create New Booking
               </Link>
@@ -159,9 +126,18 @@ export const BookingStatusPage: React.FC = () => {
                 <div className="cq-status-badge-box">
                   <span className={`cq-status-pill ${getStatusBadgeClass(booking.booking_status)}`}>
                     <span className="cq-status-dot" />
-                    {/* "Awaiting verification" is mapped from pending_verification */}
                     {booking.status_label}
                   </span>
+                  <button
+                    type="button"
+                    onClick={handleRefreshStatus}
+                    className="cq-refresh-btn"
+                    title="Refresh status"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <RefreshCwIcon size={13} />
+                    <span>Refresh</span>
+                  </button>
                 </div>
               </div>
 
@@ -200,7 +176,21 @@ export const BookingStatusPage: React.FC = () => {
                       <div className="cq-banner-title">Booking Verified & Confirmed</div>
                       <div className="cq-banner-desc">
                         Payment verification is complete. The Cleanique cleaning team will arrive at your
-                        address on {booking.scheduled_date} ({booking.scheduled_time}).
+                        address on {new Date(booking.scheduled_date).toLocaleDateString('en-NG', {
+                          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                        })} ({booking.scheduled_time}).
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {booking.booking_status === 'completed' && (
+                  <div className="cq-status-info-banner cq-banner-confirmed">
+                    <SparklesIcon size={22} color="#102A29" />
+                    <div>
+                      <div className="cq-banner-title">Service Completed</div>
+                      <div className="cq-banner-desc">
+                        Your cleaning service has been completed. Thank you for choosing Cleanique!
                       </div>
                     </div>
                   </div>
@@ -217,9 +207,19 @@ export const BookingStatusPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Quote message from admin */}
+                {booking.quote_message && booking.booking_status === 'pending_payment' && (
+                  <div className="cq-status-info-banner" style={{ marginTop: '12px', background: 'rgba(46,205,191,0.08)', borderColor: '#2ECDBF' }}>
+                    <div>
+                      <div className="cq-banner-title">Message from Cleanique</div>
+                      <div className="cq-banner-desc">{booking.quote_message}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Amount Breakdown if applicable */}
+              {/* Amount Breakdown */}
               {booking.total_amount && booking.deposit_amount && (
                 <div className="cq-status-amounts-box">
                   <div className="cq-status-amount-row">
@@ -237,7 +237,7 @@ export const BookingStatusPage: React.FC = () => {
                 </div>
               )}
 
-              {/* If still awaiting payment, provide Bank Details & Receipt Upload */}
+              {/* Bank Details & Receipt Upload for pending payment */}
               {booking.booking_status === 'pending_payment' && (
                 <>
                   <BankDetailsCard reference={booking.reference} />
@@ -247,6 +247,21 @@ export const BookingStatusPage: React.FC = () => {
                     onUploadSuccess={handleRefreshStatus}
                   />
                 </>
+              )}
+
+              {/* Allow re-upload if rejection occurred */}
+              {booking.booking_status === 'pending_verification' && booking.receipt_filename && (
+                <div className="cq-status-receipt-submitted">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <PaperclipIcon size={16} color="#2ECDBF" />
+                    <span>Receipt submitted: <strong>{booking.receipt_filename}</strong></span>
+                  </span>
+                  {booking.receipt_uploaded_at && (
+                    <span className="cq-receipt-time-sub">
+                      on {new Date(booking.receipt_uploaded_at).toLocaleString()}
+                    </span>
+                  )}
+                </div>
               )}
 
               {/* Booking Details Summary */}
@@ -259,13 +274,29 @@ export const BookingStatusPage: React.FC = () => {
                   </div>
                   {booking.package_name && (
                     <div className="cq-meta-row">
-                      <dt>Package</dt>
+                      <dt>Package / Order Details</dt>
                       <dd>{booking.package_name}</dd>
+                    </div>
+                  )}
+                  {booking.items && booking.items.length > 0 && (
+                    <div className="cq-meta-row" style={{ gridColumn: 'span 2' }}>
+                      <dt>Ordered Items ({booking.items.length})</dt>
+                      <dd>
+                        <ul style={{ margin: 0, paddingLeft: '18px', listStyleType: 'disc' }}>
+                          {booking.items.map((it, idx) => (
+                            <li key={idx} style={{ marginBottom: '4px' }}>
+                              <strong>{it.quantity}x {it.name}</strong> ({it.formattedPrice})
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
                     </div>
                   )}
                   <div className="cq-meta-row">
                     <dt>Scheduled Date</dt>
-                    <dd>{booking.scheduled_date}</dd>
+                    <dd>{new Date(booking.scheduled_date).toLocaleDateString('en-NG', {
+                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                    })}</dd>
                   </div>
                   {booking.scheduled_time && (
                     <div className="cq-meta-row">
@@ -281,6 +312,12 @@ export const BookingStatusPage: React.FC = () => {
                     <dt>Client Phone</dt>
                     <dd>{booking.customer_phone}</dd>
                   </div>
+                  {booking.customer_whatsapp && (
+                    <div className="cq-meta-row">
+                      <dt>WhatsApp</dt>
+                      <dd>{booking.customer_whatsapp}</dd>
+                    </div>
+                  )}
                   <div className="cq-meta-row" style={{ gridColumn: 'span 2' }}>
                     <dt>Service Address</dt>
                     <dd>{booking.service_address}</dd>
@@ -288,7 +325,10 @@ export const BookingStatusPage: React.FC = () => {
                   {booking.receipt_filename && (
                     <div className="cq-meta-row" style={{ gridColumn: 'span 2' }}>
                       <dt>Submitted Receipt</dt>
-                      <dd>📎 {booking.receipt_filename}</dd>
+                      <dd style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <PaperclipIcon size={14} color="#2ECDBF" />
+                        <span>{booking.receipt_filename}</span>
+                      </dd>
                     </div>
                   )}
                 </dl>
@@ -300,8 +340,16 @@ export const BookingStatusPage: React.FC = () => {
                   type="button"
                   onClick={handleCopyTrackingLink}
                   className="cq-btn cq-btn-outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  {copiedLink ? '✓ Tracking Link Copied' : 'Copy Tracking Link'}
+                  {copiedLink ? (
+                    <>
+                      <CheckIcon size={14} color="#2ECDBF" />
+                      <span>Tracking Link Copied</span>
+                    </>
+                  ) : (
+                    'Copy Tracking Link'
+                  )}
                 </button>
                 <Link to="/" className="cq-btn cq-btn-secondary">
                   Return to Home

@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
-import { CLEANIQUE_BANK_DETAILS } from '../lib/bankDetails';
-import { SparklesIcon } from './Icons';
+import React, { useState, useEffect } from 'react';
+import { getBankDetails } from '../lib/bookingApi';
+import type { BankDetails } from '../types';
+import { SparklesIcon, CheckIcon } from './Icons';
 
 interface BankDetailsCardProps {
   reference: string;
 }
 
 export const BankDetailsCard: React.FC<BankDetailsCardProps> = ({ reference }) => {
+  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getBankDetails()
+      .then((details) => {
+        if (isMounted) {
+          setBankDetails(details);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard?.writeText(text);
@@ -16,6 +36,22 @@ export const BankDetailsCard: React.FC<BankDetailsCardProps> = ({ reference }) =
       setCopiedKey((curr) => (curr === key ? null : curr));
     }, 2000);
   };
+
+  if (isLoading) {
+    return (
+      <div className="cq-bank-card" style={{ minHeight: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="cq-spinner-sm" />
+      </div>
+    );
+  }
+
+  if (!bankDetails) {
+    return (
+      <div className="cq-bank-card">
+        <p className="cq-error-msg">Unable to load payment details. Please refresh.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="cq-bank-card">
@@ -36,15 +72,16 @@ export const BankDetailsCard: React.FC<BankDetailsCardProps> = ({ reference }) =
         <div className="cq-bank-field-row">
           <div className="cq-bank-field-meta">
             <span className="cq-bank-label">Bank Name</span>
-            <span className="cq-bank-val">{CLEANIQUE_BANK_DETAILS.bankName}</span>
+            <span className="cq-bank-val">{bankDetails.bankName}</span>
           </div>
           <button
             type="button"
             className="cq-copy-btn cq-bank-copy-btn"
-            onClick={() => copyToClipboard(CLEANIQUE_BANK_DETAILS.bankName, 'bank')}
+            onClick={() => copyToClipboard(bankDetails.bankName, 'bank')}
             aria-label="Copy Bank Name"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            {copiedKey === 'bank' ? '✓ Copied' : 'Copy'}
+            {copiedKey === 'bank' ? <><CheckIcon size={13} color="#2ECDBF" /> Copied</> : 'Copy'}
           </button>
         </div>
 
@@ -52,15 +89,16 @@ export const BankDetailsCard: React.FC<BankDetailsCardProps> = ({ reference }) =
         <div className="cq-bank-field-row">
           <div className="cq-bank-field-meta">
             <span className="cq-bank-label">Account Name</span>
-            <span className="cq-bank-val">{CLEANIQUE_BANK_DETAILS.accountName}</span>
+            <span className="cq-bank-val">{bankDetails.accountName}</span>
           </div>
           <button
             type="button"
             className="cq-copy-btn cq-bank-copy-btn"
-            onClick={() => copyToClipboard(CLEANIQUE_BANK_DETAILS.accountName, 'name')}
+            onClick={() => copyToClipboard(bankDetails.accountName, 'name')}
             aria-label="Copy Account Name"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            {copiedKey === 'name' ? '✓ Copied' : 'Copy'}
+            {copiedKey === 'name' ? <><CheckIcon size={13} color="#2ECDBF" /> Copied</> : 'Copy'}
           </button>
         </div>
 
@@ -68,17 +106,16 @@ export const BankDetailsCard: React.FC<BankDetailsCardProps> = ({ reference }) =
         <div className="cq-bank-field-row cq-bank-field-row-acc">
           <div className="cq-bank-field-meta">
             <span className="cq-bank-label">Account Number</span>
-            <span className="cq-bank-val cq-bank-val-acc">
-              {CLEANIQUE_BANK_DETAILS.accountNumber}
-            </span>
+            <span className="cq-bank-val cq-bank-val-acc">{bankDetails.accountNumber}</span>
           </div>
           <button
             type="button"
             className="cq-copy-btn cq-bank-copy-btn"
-            onClick={() => copyToClipboard(CLEANIQUE_BANK_DETAILS.accountNumber, 'acc')}
+            onClick={() => copyToClipboard(bankDetails.accountNumber, 'acc')}
             aria-label="Copy Account Number"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            {copiedKey === 'acc' ? '✓ Copied' : 'Copy'}
+            {copiedKey === 'acc' ? <><CheckIcon size={13} color="#2ECDBF" /> Copied</> : 'Copy'}
           </button>
         </div>
       </div>

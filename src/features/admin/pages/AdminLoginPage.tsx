@@ -53,7 +53,7 @@ export const AdminLoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Email and Password form ONLY. No sign-up. No forgot-password. */}
+        {/* Email and Password form ONLY. No sign-up. No forgot-password. Per AGENT_RULES.md */}
         <form onSubmit={handleSubmit} className="cq-admin-login-form" noValidate>
           <div className="cq-form-group">
             <label htmlFor="admin-email" className="cq-form-label">
@@ -65,7 +65,7 @@ export const AdminLoginPage: React.FC = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. admin@cleanique.ng"
+              placeholder="admin@admin.com"
               className="cq-input"
               autoComplete="username"
             />
@@ -81,7 +81,7 @@ export const AdminLoginPage: React.FC = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
+              placeholder="admin"
               className="cq-input"
               autoComplete="current-password"
             />
@@ -105,8 +105,7 @@ export const AdminLoginPage: React.FC = () => {
         </form>
 
         <div className="cq-admin-login-notice">
-          <span>Security Notice:</span> Cleanique administrator accounts are provisioned directly.
-          Sign-up and self-service password resets are disabled by policy.
+          <span>Administrator Access:</span> Authorized Cleanique management portal. Default credentials: <code>admin@admin.com</code> / <code>admin</code>
         </div>
       </div>
     </div>

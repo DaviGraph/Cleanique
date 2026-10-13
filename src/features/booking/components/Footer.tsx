@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { SparklesIcon } from './Icons';
+import { SparklesIcon, MessageCircleIcon } from './Icons';
 
 export const Footer: React.FC = () => {
   return (
     <footer className="cq-footer">
       <div className="cq-container">
         <div className="cq-footer-grid">
+          {/* Brand & Mission */}
           <div className="cq-footer-brand-col">
             <div className="cq-brand">
               <div className="cq-brand-icon">
@@ -18,49 +19,56 @@ export const Footer: React.FC = () => {
               </div>
             </div>
             <p className="cq-footer-tagline">
-              Premium residential, commercial, and post-construction sanitization services.
-              Built on transparency, certified hygiene, and reliable execution.
+              Professional residential, commercial, and post-construction sanitization services.
+              Spotless hygiene, vetted specialists, and dependable execution.
             </p>
           </div>
 
+          {/* Quick Navigation */}
           <div className="cq-footer-links-col">
-            <h4 className="cq-footer-heading">Residential Packages</h4>
+            <h4 className="cq-footer-heading">Quick Links</h4>
             <ul className="cq-footer-links">
-              <li><Link to="/book?package=pkg_single_room">Single Room (₦20,000)</Link></li>
-              <li><Link to="/book?package=pkg_bedsitter">Bedsitter (₦25,000)</Link></li>
-              <li><Link to="/book?package=pkg_self_contained">Self-Contained (₦35,000)</Link></li>
-              <li><Link to="/book?package=pkg_two_bedroom">Two-Bedroom (₦50,000)</Link></li>
-              <li><Link to="/book?package=pkg_three_bedroom">Three-Bedroom (₦65,000)</Link></li>
+              <li><Link to="/">Home</Link></li>
+              <li><a href="/#packages">Residential Packages</a></li>
+              <li><a href="/#services">Specialized Services</a></li>
+              <li><Link to="/book">Book a Clean</Link></li>
             </ul>
           </div>
 
+          {/* Operating Hours & Support */}
           <div className="cq-footer-links-col">
-            <h4 className="cq-footer-heading">Specialized & Quotes</h4>
-            <ul className="cq-footer-links">
-              <li><Link to="/book?service=srv_deep_clean">Deep Cleaning</Link></li>
-              <li><Link to="/book?service=srv_move_in_out">Move-in / Move-out</Link></li>
-              <li><Link to="/book?service=srv_post_construction">Post-Construction</Link></li>
-              <li><Link to="/book?service=srv_office">Office & Corporate</Link></li>
-              <li><Link to="/book?service=srv_commercial">Commercial Facilities</Link></li>
-              <li><Link to="/book?service=srv_dishwashing">Dishwashing (From ₦3,000)</Link></li>
-            </ul>
-          </div>
-
-          <div className="cq-footer-links-col">
-            <h4 className="cq-footer-heading">Operating Hours</h4>
+            <h4 className="cq-footer-heading">Hours & Support</h4>
             <p className="cq-footer-text">
-              Monday – Saturday: 7:30 AM – 7:00 PM<br />
-              Sunday: 9:00 AM – 5:00 PM<br />
-              <span className="cq-footer-highlight">Emergency & after-hours available for commercial spaces.</span>
+              Mon – Sat: 7:30 AM – 7:00 PM<br />
+              Sunday: 9:00 AM – 5:00 PM
             </p>
+            <div style={{ marginTop: '10px' }}>
+              <a
+                href="https://wa.me/2349162192102?text=Hello%20Cleanique,%20I%20have%20an%20inquiry%20regarding%20cleaning%20services"
+                target="_blank"
+                rel="noreferrer"
+                className="cq-footer-highlight"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+              >
+                <MessageCircleIcon size={16} color="#25D366" />
+                <span>WhatsApp Support</span>
+              </a>
+            </div>
           </div>
         </div>
 
         <div className="cq-footer-bottom">
-          <p>© {new Date().getFullYear()} Cleanique. All rights reserved.</p>
-          <p className="cq-footer-note">
-            Prices displayed are read directly from our service registry. All payment receipts are verified prior to final booking confirmation.
-          </p>
+          <p>© {new Date().getFullYear()} Cleanique Hygiene & Facility Care. All rights reserved.</p>
+          <div className="cq-footer-bottom-links">
+            <Link
+              to="/admin/login"
+              style={{ color: 'rgba(245, 249, 248, 0.45)', textDecoration: 'none', fontSize: '0.8rem', transition: 'color 0.2s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#2ECDBF')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(245, 249, 248, 0.45)')}
+            >
+              Admin Portal
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

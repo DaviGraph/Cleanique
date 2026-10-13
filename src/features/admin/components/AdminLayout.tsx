@@ -1,14 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, Outlet } from 'react-router-dom';
-import { getAdminSession, adminLogout } from '../lib/adminApi';
+import { adminLogout, getAdminSession } from '../lib/adminApi';
+import { supabase } from '../../../lib/supabaseClient';
 import { SparklesIcon } from '../../booking/components/Icons';
 
 export const AdminLayout: React.FC = () => {
-  const session = getAdminSession();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    adminLogout();
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUser() {
+      const session = await getAdminSession();
+      if (isMounted) {
+        setUserEmail(session?.email || 'admin@admin.com');
+      }
+    }
+
+    loadUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (isMounted) {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+        } else {
+          const current = await getAdminSession();
+          setUserEmail(current?.email || null);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await adminLogout();
     navigate('/admin/login');
   };
 
@@ -32,6 +62,9 @@ export const AdminLayout: React.FC = () => {
               <Link to="/admin" className="cq-admin-nav-link">
                 All Bookings
               </Link>
+              <Link to="/admin/settings" className="cq-admin-nav-link">
+                Settings
+              </Link>
               <Link to="/" target="_blank" rel="noreferrer" className="cq-admin-nav-link cq-admin-view-site">
                 Customer View ↗
               </Link>
@@ -39,10 +72,10 @@ export const AdminLayout: React.FC = () => {
           </div>
 
           <div className="cq-admin-nav-right">
-            {session && (
+            {userEmail && (
               <div className="cq-admin-user-pill">
                 <span className="cq-admin-user-role">ADMIN</span>
-                <span className="cq-admin-user-email">{session.email}</span>
+                <span className="cq-admin-user-email">{userEmail}</span>
               </div>
             )}
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Package } from '../types';
-import { CheckIcon, SparklesIcon } from './Icons';
+import { CheckIcon, SparklesIcon, ShoppingCartIcon } from './Icons';
+import { useCart } from '../context/CartContext';
 
 interface PackageCardProps {
   packageData: Package;
@@ -9,6 +10,31 @@ interface PackageCardProps {
 
 export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect }) => {
   const isPopular = Boolean(packageData.popular);
+  const { items, addToCart, openCart } = useCart();
+
+  const cartItem = items.find((i) => i.itemId === packageData.id);
+
+  const handleAddToCart = () => {
+    addToCart({
+      itemId: packageData.id,
+      name: packageData.name,
+      category: 'Residential',
+      price: packageData.price,
+      formattedPrice: packageData.formattedPrice,
+      isQuote: false,
+      features: packageData.features,
+      itemType: 'package',
+    });
+  };
+
+  const handleBookNow = () => {
+    handleAddToCart();
+    if (onSelect) {
+      onSelect(packageData);
+    } else {
+      openCart();
+    }
+  };
 
   return (
     <div className={`cq-pkg-card ${isPopular ? 'cq-pkg-card-popular' : ''}`}>
@@ -47,14 +73,25 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
         ))}
       </ul>
 
-      <div className="cq-pkg-action">
+      <div className="cq-pkg-action" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           type="button"
-          onClick={() => onSelect?.(packageData)}
+          onClick={handleAddToCart}
           className={`cq-btn ${isPopular ? 'cq-btn-primary' : 'cq-btn-outline'} cq-pkg-btn`}
-          id={`select-package-${packageData.id}`}
+          id={`add-package-${packageData.id}`}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          Book {packageData.name}
+          <ShoppingCartIcon size={16} />
+          <span>{cartItem ? `Add More (${cartItem.quantity} in Cart)` : 'Add to Cart'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleBookNow}
+          className="cq-btn cq-btn-secondary"
+          style={{ fontSize: '0.85rem', padding: '8px 14px' }}
+        >
+          Book Now →
         </button>
       </div>
     </div>

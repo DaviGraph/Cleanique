@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { CreateBookingResponse } from '../types';
 import { PaymentInstructionsStep } from './PaymentInstructionsStep';
-import { SparklesIcon, ShieldCheckIcon } from './Icons';
+import { SparklesIcon, ShieldCheckIcon, CheckIcon } from './Icons';
 
 interface BookingResultScreenProps {
   booking: CreateBookingResponse;
@@ -53,8 +53,16 @@ export const BookingResultScreen: React.FC<BookingResultScreenProps> = ({
             className="cq-copy-btn"
             title="Copy Reference"
             aria-label="Copy quote reference"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
-            {copied ? '✓ Copied' : 'Copy'}
+            {copied ? (
+              <>
+                <CheckIcon size={13} color="#2ECDBF" />
+                <span>Copied</span>
+              </>
+            ) : (
+              'Copy'
+            )}
           </button>
         </div>
         <div className="cq-reference-note">

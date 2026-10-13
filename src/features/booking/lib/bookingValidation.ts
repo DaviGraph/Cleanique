@@ -38,6 +38,13 @@ export const bookingCustomerDetailsSchema = z.object({
     .email({ message: 'Please enter a valid email address.' })
     .or(z.literal(''))
     .optional(),
+  customerWhatsapp: z
+    .string()
+    .trim()
+    .min(7, { message: 'Please provide a valid WhatsApp number (at least 7 digits).' })
+    .regex(/^[+0-9\s\-()]+$/, { message: 'WhatsApp number may only contain digits, spaces, and standard formatting.' })
+    .or(z.literal(''))
+    .optional(),
   serviceAddress: z
     .string()
     .trim()

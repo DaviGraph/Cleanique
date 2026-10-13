@@ -26,10 +26,17 @@ export interface Package {
   recommendedFor: string;
 }
 
+export interface BankDetails {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+}
+
 export interface CreateBookingPayload {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
+  customerWhatsapp?: string;
   serviceId?: string;
   packageId?: string;
   serviceAddress: string;
@@ -37,6 +44,7 @@ export interface CreateBookingPayload {
   scheduledTime?: string;
   notes?: string;
   quoteDetails?: string;
+  items?: CartItemSummary[];
   // NOTE: In accordance with AGENT_RULES.md, client NEVER submits prices.
 }
 
@@ -44,6 +52,7 @@ export type BookingStatus =
   | 'pending_payment'
   | 'pending_verification'
   | 'confirmed'
+  | 'completed'
   | 'cancelled';
 
 export interface CreateBookingResponse {
@@ -62,7 +71,9 @@ export interface CreateBookingResponse {
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
+  customerWhatsapp?: string;
   quoteDetails?: string;
+  items?: CartItemSummary[];
 }
 
 export interface BookingStatusResponse {
@@ -78,6 +89,7 @@ export interface BookingStatusResponse {
   customer_name: string;
   customer_phone: string;
   customer_email?: string;
+  customer_whatsapp?: string;
   service_address: string;
   scheduled_date: string;
   scheduled_time?: string;
@@ -85,6 +97,8 @@ export interface BookingStatusResponse {
   receipt_uploaded_at?: string;
   notes?: string;
   quote_details?: string;
+  quote_message?: string;
+  items?: CartItemSummary[];
 }
 
 export interface SubmitReceiptResponse {
@@ -92,3 +106,26 @@ export interface SubmitReceiptResponse {
   message: string;
   booking_status: BookingStatus;
 }
+
+export interface CartItemSummary {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number | null;
+  formattedPrice: string;
+  isQuote: boolean;
+}
+
+export interface CartItem {
+  id: string;
+  itemId: string;
+  name: string;
+  category: string;
+  price: number | null;
+  formattedPrice: string;
+  quantity: number;
+  isQuote: boolean;
+  features?: string[];
+  itemType: 'package' | 'service';
+}
+

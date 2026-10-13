@@ -4,7 +4,13 @@ import {
   bookingCustomerDetailsSchema,
   quoteCustomerDetailsSchema,
 } from '../lib/bookingValidation';
-import { SparklesIcon, ShieldCheckIcon, ClockIcon } from './Icons';
+import {
+  SparklesIcon,
+  ShieldCheckIcon,
+  ClockIcon,
+  MailIcon,
+  MessageCircleIcon,
+} from './Icons';
 
 interface BookingCustomerDetailsStepProps {
   service: Service;
@@ -23,11 +29,11 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
 }) => {
   const isQuote = service.pricingType === 'quote' || !packageData;
 
-  // Form field state
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
     customerEmail: '',
+    customerWhatsapp: '',
     serviceAddress: '',
     scheduledDate: '',
     scheduledTime: '09:00 AM - 12:00 PM (Morning)',
@@ -37,7 +43,6 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Minimum allowed date is today in YYYY-MM-DD
   const todayStr = new Date().toISOString().split('T')[0];
 
   const timeOptions = [
@@ -54,7 +59,6 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Clear error for field upon typing
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -67,7 +71,6 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Select the appropriate Zod schema
     const schema = isQuote ? quoteCustomerDetailsSchema : bookingCustomerDetailsSchema;
     const result = schema.safeParse(formData);
 
@@ -80,14 +83,18 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
         }
       });
       setErrors(fieldErrors);
+      // Scroll to first error
+      const firstError = document.querySelector('.is-invalid');
+      firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
-    // Submit payload adhering to AGENT_RULES.md: NEVER send prices from client!
+    // Submit payload — NEVER send prices from client (AGENT_RULES.md)
     onSubmit({
       customerName: formData.customerName.trim(),
       customerPhone: formData.customerPhone.trim(),
       customerEmail: formData.customerEmail.trim() || undefined,
+      customerWhatsapp: formData.customerWhatsapp.trim() || undefined,
       serviceAddress: formData.serviceAddress.trim(),
       scheduledDate: formData.scheduledDate,
       scheduledTime: formData.scheduledTime,
@@ -101,7 +108,7 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
   return (
     <div className="cq-step-content">
       <div className="cq-step-header">
-        <span className="cq-badge cq-badge-turquoise">Step 3 of 3</span>
+        <span className="cq-badge cq-badge-turquoise">Step {isQuote ? '2' : '3'} of {isQuote ? '2' : '3'}</span>
         <h2 className="cq-step-title">
           {isQuote ? 'Request Your Custom Quote' : 'Customer & Scheduling Details'}
         </h2>
@@ -135,6 +142,7 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
             </div>
           )}
 
+          {/* Name + Phone */}
           <div className="cq-form-row">
             <div className="cq-form-group">
               <label htmlFor="customerName" className="cq-form-label">
@@ -148,6 +156,7 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
                 onChange={handleChange}
                 placeholder="e.g. Chinedu Okafor"
                 className={`cq-input ${errors.customerName ? 'is-invalid' : ''}`}
+                autoComplete="name"
               />
               {errors.customerName && (
                 <p className="cq-error-msg">{errors.customerName}</p>
@@ -166,6 +175,7 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
                 onChange={handleChange}
                 placeholder="e.g. 0803 123 4567"
                 className={`cq-input ${errors.customerPhone ? 'is-invalid' : ''}`}
+                autoComplete="tel"
               />
               {errors.customerPhone && (
                 <p className="cq-error-msg">{errors.customerPhone}</p>
@@ -173,24 +183,54 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
             </div>
           </div>
 
-          <div className="cq-form-group">
-            <label htmlFor="customerEmail" className="cq-form-label">
-              Email Address <span className="cq-opt">(Optional)</span>
-            </label>
-            <input
-              id="customerEmail"
-              name="customerEmail"
-              type="email"
-              value={formData.customerEmail}
-              onChange={handleChange}
-              placeholder="e.g. chinedu@example.com"
-              className={`cq-input ${errors.customerEmail ? 'is-invalid' : ''}`}
-            />
-            {errors.customerEmail && (
-              <p className="cq-error-msg">{errors.customerEmail}</p>
-            )}
+          {/* Email + WhatsApp */}
+          <div className="cq-form-row">
+            <div className="cq-form-group">
+              <label htmlFor="customerEmail" className="cq-form-label">
+                Email Address <span className="cq-opt">(Optional)</span>
+              </label>
+              <input
+                id="customerEmail"
+                name="customerEmail"
+                type="email"
+                value={formData.customerEmail}
+                onChange={handleChange}
+                placeholder="e.g. chinedu@example.com"
+                className={`cq-input ${errors.customerEmail ? 'is-invalid' : ''}`}
+                autoComplete="email"
+              />
+              {errors.customerEmail && (
+                <p className="cq-error-msg">{errors.customerEmail}</p>
+              )}
+            </div>
+
+            <div className="cq-form-group">
+              <label htmlFor="customerWhatsapp" className="cq-form-label">
+                <span className="cq-whatsapp-label-inner">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366" style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}>
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  WhatsApp Number <span className="cq-opt">(Optional)</span>
+                </span>
+              </label>
+              <input
+                id="customerWhatsapp"
+                name="customerWhatsapp"
+                type="tel"
+                value={formData.customerWhatsapp}
+                onChange={handleChange}
+                placeholder="e.g. +234 803 123 4567"
+                className={`cq-input ${errors.customerWhatsapp ? 'is-invalid' : ''}`}
+                autoComplete="tel"
+              />
+              {errors.customerWhatsapp && (
+                <p className="cq-error-msg">{errors.customerWhatsapp}</p>
+              )}
+              <p className="cq-input-hint">Used to send booking updates via WhatsApp</p>
+            </div>
           </div>
 
+          {/* Service Address */}
           <div className="cq-form-group">
             <label htmlFor="serviceAddress" className="cq-form-label">
               Service Address / Location <span className="cq-req">*</span>
@@ -203,12 +243,14 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
               onChange={handleChange}
               placeholder="e.g. Flat 4B, Greenwood Court, Victoria Island, Lagos"
               className={`cq-input ${errors.serviceAddress ? 'is-invalid' : ''}`}
+              autoComplete="street-address"
             />
             {errors.serviceAddress && (
               <p className="cq-error-msg">{errors.serviceAddress}</p>
             )}
           </div>
 
+          {/* Date + Time */}
           <div className="cq-form-row">
             <div className="cq-form-group">
               <label htmlFor="scheduledDate" className="cq-form-label">
@@ -248,6 +290,7 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
             </div>
           </div>
 
+          {/* Notes */}
           <div className="cq-form-group">
             <label htmlFor="notes" className="cq-form-label">
               Additional Notes / Gate Instructions <span className="cq-opt">(Optional)</span>
@@ -347,6 +390,22 @@ export const BookingCustomerDetailsStep: React.FC<BookingCustomerDetailsStepProp
                 <ClockIcon size={16} color="#2ECDBF" />
                 <span>Zero charge until review & verification</span>
               </div>
+            </div>
+
+            {/* Contact info preview */}
+            <div className="cq-summary-contact-hints">
+              {formData.customerEmail && (
+                <div className="cq-summary-contact-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MailIcon size={14} color="#2ECDBF" />
+                  <span>Email confirmation will be sent</span>
+                </div>
+              )}
+              {formData.customerWhatsapp && (
+                <div className="cq-summary-contact-hint" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MessageCircleIcon size={14} color="#25D366" />
+                  <span>WhatsApp updates enabled</span>
+                </div>
+              )}
             </div>
           </div>
         </aside>
