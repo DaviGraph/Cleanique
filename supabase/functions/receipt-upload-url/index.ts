@@ -24,7 +24,6 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const { reference, token, mime, size } = body;
 
-    // Reject unless mime is image/jpeg, image/png or application/pdf and 0 < size <= 5242880
     const allowedMimes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (
       !reference ||
@@ -56,7 +55,6 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Call rpc('verify_booking_access', { p_ref: reference, p_token: token })
     const { data: bookingIdData, error: verifyError } = await supabase.rpc(
       'verify_booking_access',
       {
@@ -113,10 +111,13 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch {
-    return new Response(JSON.stringify({ error: 'An unexpected error occurred.' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : 'An unexpected error occurred.' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

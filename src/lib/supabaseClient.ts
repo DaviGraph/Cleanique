@@ -5,11 +5,27 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://placeholder.supabase.co';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey =
-  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
-  'placeholder-anon-key';
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
+
+if (!supabaseUrl) {
+  throw new Error('Missing environment variable: VITE_SUPABASE_URL');
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('Missing environment variable: VITE_SUPABASE_ANON_KEY');
+}
+
+if (import.meta.env.DEV) {
+  const supabaseUrlRegex = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i;
+  if (!supabaseUrlRegex.test(supabaseUrl.trim())) {
+    console.warn(
+      `[Supabase Client Warning] VITE_SUPABASE_URL ("${supabaseUrl}") does not match the standard pattern https://<id>.supabase.co.`
+    );
+  }
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

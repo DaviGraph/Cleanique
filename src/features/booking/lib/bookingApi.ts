@@ -610,20 +610,23 @@ export async function submitReceipt(
   // Step 1: Validate type and size in browser
   const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
   if (!allowedTypes.includes(file.type)) {
-    throw new Error('Invalid file format. Please upload JPG, PNG, or PDF receipts only.');
+    const err = new Error('Invalid file format. Please upload JPG, PNG, or PDF receipts only.');
+    console.error('Receipt validation error:', err);
+    throw err;
   }
 
   const MAX_SIZE = 5242880; // 5MB
   if (file.size <= 0 || file.size > MAX_SIZE) {
-    throw new Error('File size exceeds the 5MB limit. Please upload a smaller file.');
+    const err = new Error('Invalid file size. File must be greater than 0B and no larger than 5MB.');
+    console.error('Receipt size error:', err);
+    throw err;
   }
 
-  // Step 2: POST to Edge Function at `${VITE_SUPABASE_URL}/functions/v1/receipt-upload-url`
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  // Step 2: POST to Edge Function at `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/receipt-upload-url`
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const anonKey =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_SUPABASE_ANON_KEY ||
-    '';
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
 
   const edgeUrl = `${supabaseUrl}/functions/v1/receipt-upload-url`;
   let uploadUrlRes: Response;
@@ -632,6 +635,7 @@ export async function submitReceipt(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        apikey: anonKey,
         Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({
@@ -642,25 +646,24 @@ export async function submitReceipt(
       }),
     });
   } catch (err) {
-    // Gracefully format network connection failures / offline backend errors
-    const isNetworkErr = err instanceof TypeError && err.message.includes('fetch');
-    throw new Error(
-      isNetworkErr
-        ? 'Unable to connect to the receipt upload service. Please check your internet connection or try again.'
-        : `Receipt upload service connection error: ${err instanceof Error ? err.message : 'Network error'}`
-    );
+    console.error('Receipt Edge Function network failure:', err);
+    throw new Error('Network failure: Unable to connect to the receipt upload service.');
   }
 
   if (!uploadUrlRes.ok) {
     const errBody = await uploadUrlRes.json().catch(() => ({}));
-    throw new Error(
-      errBody.error || `Upload authorization failed (HTTP ${uploadUrlRes.status}).`
-    );
+    console.error('Receipt Edge Function HTTP error:', uploadUrlRes.status, errBody);
+    if (uploadUrlRes.status === 403) {
+      throw new Error('403 Invalid booking access: Verification failed for reference or access token.');
+    }
+    throw new Error(errBody.error || `Upload authorization failed (HTTP ${uploadUrlRes.status}).`);
   }
 
-  const { path, token: signedToken } = await uploadUrlRes.json();
+  const { path, token: signedToken } = await uploadUrlRes.json().catch(() => ({}));
   if (!path || !signedToken) {
-    throw new Error('Server returned an invalid signed upload URL.');
+    const err = new Error('Server returned an invalid signed upload URL.');
+    console.error('Invalid signed upload URL response:', { path, signedToken });
+    throw err;
   }
 
   // Step 3: Upload file using supabase.storage.from('payment-receipts').uploadToSignedUrl(...)
@@ -671,7 +674,8 @@ export async function submitReceipt(
     });
 
   if (storageError) {
-    throw new Error(`Receipt storage upload failed: ${storageError.message}`);
+    console.error('Storage upload failure:', storageError);
+    throw new Error(`Storage upload failure: ${storageError.message}`);
   }
 
   // Step 4: Call attach_receipt RPC with path, mime, size
@@ -684,7 +688,8 @@ export async function submitReceipt(
   });
 
   if (rpcError) {
-    throw new Error(`Failed to attach receipt to booking record: ${rpcError.message}`);
+    console.error('attach_receipt RPC failure:', rpcError);
+    throw new Error(`attach_receipt failure: ${rpcError.message}`);
   }
 
   // Step 5: On success show EXACT phrase mandated by prompt and AGENT_RULES.md

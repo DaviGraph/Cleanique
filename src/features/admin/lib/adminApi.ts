@@ -35,17 +35,40 @@ export async function adminLogin(email: string, password: string): Promise<Admin
   }
 
   if (cleanEmail === 'admin@admin.com' && (cleanPassword === 'admin' || cleanPassword === 'admin123')) {
+    let sessionUser = null;
     try {
-      await supabase.auth.signInWithPassword({
+      const authRes = await supabase.auth.signInWithPassword({
         email: 'admin@admin.com',
         password: 'admin123',
       });
-    } catch {
-      // Continue with admin session
+      if (authRes.data?.user) {
+        sessionUser = authRes.data.user;
+      }
+    } catch (authErr) {
+      console.warn('Supabase auth sign in warning:', authErr);
+    }
+
+    // Confirm session user exists in the owners table
+    if (sessionUser) {
+      try {
+        const { data: ownerData, error: ownerError } = await supabase
+          .from('owners')
+          .select('id')
+          .eq('id', sessionUser.id)
+          .maybeSingle();
+
+        if (ownerError) {
+          console.warn('Owners table check notice:', ownerError.message);
+        } else if (!ownerData) {
+          console.warn(`User ${sessionUser.id} not listed in owners table.`);
+        }
+      } catch (ownerErr) {
+        console.warn('Owners table query exception:', ownerErr);
+      }
     }
 
     const session: AdminSession = {
-      id: 'admin_master_01',
+      id: sessionUser?.id || 'admin_master_01',
       email: 'admin@admin.com',
       role: 'admin',
       logged_in_at: new Date().toISOString(),
@@ -130,7 +153,8 @@ export async function getAdminBookings(filters?: {
   }
 
   if (error) {
-    throw new Error(`Failed to load bookings from database: ${error.message}`);
+    console.error('Supabase query error loading bookings:', error);
+    throw new Error(error.message || 'Failed to load bookings from database.');
   }
 
   const list: AdminBooking[] = (data || []).map((row: any) => {
