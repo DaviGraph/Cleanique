@@ -129,46 +129,72 @@ export async function getAdminBookings(filters?: {
   let data: any[] | null = null;
   let error: any = null;
 
-  // Try comprehensive joined query first
+  // 1. Fetch base bookings table rows directly
   try {
     const res = await supabase
       .from('bookings')
-      .select(`
-        *,
-        services (*),
-        booking_items (*),
-        quotes (*),
-        payments (*)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
     data = res.data;
     error = res.error;
   } catch (err) {
-    console.warn('Joined query notice, trying simplified query:', err);
-  }
-
-  // Fallback to simple query if join query fails
-  if (error || !data) {
-    try {
-      const simpleRes = await supabase
-        .from('bookings')
-        .select('*')
-        .order('created_at', { ascending: false });
-      data = simpleRes.data;
-      error = simpleRes.error;
-    } catch (err) {
-      console.error('Simple query failed:', err);
-      throw new Error(`Failed to load bookings from database: ${err instanceof Error ? err.message : 'Database error'}`);
-    }
+    console.error('Error fetching bookings:', err);
+    throw new Error(`Failed to load bookings: ${err instanceof Error ? err.message : 'Database query error'}`);
   }
 
   if (error) {
-    console.error('Supabase query error loading bookings:', error);
-    throw new Error(error.message || 'Failed to load bookings from database.');
+    console.error('Supabase error loading bookings:', error);
+    throw new Error(`Failed to load bookings from database: ${error.message}`);
   }
 
-  const list: AdminBooking[] = (data || []).map((row: any) => {
-    const serviceName = row.services?.name || row.service_name || 'Standard Residential Cleaning';
+  const rawBookings = data || [];
+
+  // 2. Safely load related payments, items, and quotes in parallel
+  let paymentsMap: Record<string, any[]> = {};
+  let itemsMap: Record<string, any[]> = {};
+  let quotesMap: Record<string, any> = {};
+
+  try {
+    const [paymentsRes, itemsRes, quotesRes] = await Promise.all([
+      supabase.from('payments').select('*'),
+      supabase.from('booking_items').select('*'),
+      supabase.from('quotes').select('*'),
+    ]);
+
+    if (paymentsRes.data) {
+      paymentsRes.data.forEach((p: any) => {
+        const bId = p.booking_id || p.booking;
+        if (bId) {
+          if (!paymentsMap[bId]) paymentsMap[bId] = [];
+          paymentsMap[bId].push(p);
+        }
+      });
+    }
+
+    if (itemsRes.data) {
+      itemsRes.data.forEach((it: any) => {
+        const bId = it.booking_id || it.booking;
+        if (bId) {
+          if (!itemsMap[bId]) itemsMap[bId] = [];
+          itemsMap[bId].push(it);
+        }
+      });
+    }
+
+    if (quotesRes.data) {
+      quotesRes.data.forEach((q: any) => {
+        const bId = q.booking_id || q.booking;
+        if (bId) {
+          quotesMap[bId] = q;
+        }
+      });
+    }
+  } catch (relErr) {
+    console.warn('Notice loading related tables:', relErr);
+  }
+
+  const list: AdminBooking[] = rawBookings.map((row: any) => {
+    const serviceName = row.service_name || row.services?.name || 'Standard Residential Cleaning';
 
     let bStatus: AdminBooking['booking_status'] = 'pending_payment';
     const rawB = (row.booking_status || '').toLowerCase().replace(/\s+/g, '_');
@@ -184,8 +210,8 @@ export async function getAdminBookings(filters?: {
     else if (rawP.includes('part')) pStatus = 'partially_paid';
     else if (rawP.includes('reject')) pStatus = 'rejected';
 
-    const rawPayments = Array.isArray(row.payments) ? row.payments : row.payments ? [row.payments] : [];
-    const paymentsList: PaymentRow[] = rawPayments.map((p: any) => ({
+    const bPayments = paymentsMap[row.id] || (Array.isArray(row.payments) ? row.payments : row.payments ? [row.payments] : []);
+    const paymentsList: PaymentRow[] = bPayments.map((p: any) => ({
       id: p.id,
       submitted_at: p.created_at || p.submitted_at || new Date().toISOString(),
       file_type: (p.mime || p.file_type || '').includes('pdf') ? 'pdf' : 'image',
@@ -197,8 +223,8 @@ export async function getAdminBookings(filters?: {
       receipt_path: p.receipt_path || p.path || p.storage_path || '',
     }));
 
-    const rawItems = Array.isArray(row.booking_items) ? row.booking_items : [];
-    const itemsList: AdminBookingItem[] = rawItems.map((item: any) => ({
+    const bItems = itemsMap[row.id] || (Array.isArray(row.booking_items) ? row.booking_items : []);
+    const itemsList: AdminBookingItem[] = bItems.map((item: any) => ({
       id: item.id || item.package_id,
       name: item.package_name || item.name || 'Cleaning Item',
       quantity: item.quantity || 1,
@@ -206,9 +232,9 @@ export async function getAdminBookings(filters?: {
       formattedPrice: item.unit_price ? `₦${Number(item.unit_price).toLocaleString()}` : 'Included',
     }));
 
-    const rawQuotes = Array.isArray(row.quotes) ? row.quotes[0] : row.quotes;
-    const quoteMessage = rawQuotes?.message || row.quote_message;
-    const quoteAmount = rawQuotes?.amount || row.quote_amount;
+    const bQuote = quotesMap[row.id] || (Array.isArray(row.quotes) ? row.quotes[0] : row.quotes);
+    const quoteMessage = bQuote?.message || row.quote_message;
+    const quoteAmount = bQuote?.amount || row.quote_amount;
 
     return {
       id: row.id,
