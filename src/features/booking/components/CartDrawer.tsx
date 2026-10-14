@@ -9,7 +9,6 @@ import {
   MinusIcon,
   ShieldCheckIcon,
   ArrowRightIcon,
-  SparklesIcon,
 } from './Icons';
 
 export const CartDrawer: React.FC = () => {
@@ -23,7 +22,6 @@ export const CartDrawer: React.FC = () => {
     totalCount,
     totalAmount,
     depositAmount,
-    hasQuoteItems,
   } = useCart();
 
   const navigate = useNavigate();
@@ -68,14 +66,13 @@ export const CartDrawer: React.FC = () => {
               </div>
               <h3 className="cq-cart-empty-title">Your cart is empty</h3>
               <p className="cq-cart-empty-desc">
-                Choose residential cleaning packages or specialized commercial hygiene services to
-                build your customized order.
+                Choose residential cleaning packages to build your customized order.
               </p>
               <button
                 type="button"
                 onClick={() => {
                   closeCart();
-                  navigate('/#packages');
+                  navigate('/book');
                 }}
                 className="cq-btn cq-btn-primary cq-cart-browse-btn"
               >
@@ -106,41 +103,35 @@ export const CartDrawer: React.FC = () => {
 
                   <div className="cq-cart-item-footer">
                     <div className="cq-cart-item-price">
-                      {item.isQuote ? (
-                        <span className="cq-cart-price-quote">Custom Quote</span>
-                      ) : (
-                        <span className="cq-cart-price-val">
-                          ₦{((item.price || 0) * item.quantity).toLocaleString()}
-                          {item.quantity > 1 && (
-                            <span className="cq-cart-unit-price">
-                              {' '}(₦{(item.price || 0).toLocaleString()} each)
-                            </span>
-                          )}
-                        </span>
-                      )}
+                      <span className="cq-cart-price-val">
+                        ₦{((item.price || 0) * item.quantity).toLocaleString()}
+                        {item.quantity > 1 && (
+                          <span className="cq-cart-unit-price">
+                            {' '}(₦{(item.price || 0).toLocaleString()} each)
+                          </span>
+                        )}
+                      </span>
                     </div>
 
-                    {!item.isQuote && (
-                      <div className="cq-cart-qty-controls">
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(item.id, -1)}
-                          className="cq-cart-qty-btn"
-                          aria-label="Decrease quantity"
-                        >
-                          <MinusIcon size={12} />
-                        </button>
-                        <span className="cq-cart-qty-val">{item.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(item.id, 1)}
-                          className="cq-cart-qty-btn"
-                          aria-label="Increase quantity"
-                        >
-                          <PlusIcon size={12} />
-                        </button>
-                      </div>
-                    )}
+                    <div className="cq-cart-qty-controls">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="cq-cart-qty-btn"
+                        aria-label="Decrease quantity"
+                      >
+                        <MinusIcon size={12} />
+                      </button>
+                      <span className="cq-cart-qty-val">{item.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="cq-cart-qty-btn"
+                        aria-label="Increase quantity"
+                      >
+                        <PlusIcon size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -163,15 +154,6 @@ export const CartDrawer: React.FC = () => {
                     <span className="cq-cart-deposit-amt">₦{depositAmount.toLocaleString()}</span>
                   </div>
                 </>
-              )}
-
-              {hasQuoteItems && (
-                <div className="cq-cart-quote-notice">
-                  <SparklesIcon size={14} color="#2ECDBF" />
-                  <span>
-                    Includes custom quote items. Our operations team will verify specifications.
-                  </span>
-                </div>
               )}
             </div>
 

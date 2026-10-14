@@ -13,6 +13,18 @@ export type PaymentStatus =
   | 'fully_paid'
   | 'rejected';
 
+export interface PaymentRow {
+  id: string;
+  submitted_at: string;
+  file_type: 'image' | 'pdf';
+  size: number;
+  size_formatted: string;
+  status: string;
+  verified_amount: number;
+  rejection_reason: string | null;
+  receipt_path: string;
+}
+
 export interface AdminReceipt {
   id: string;
   filename: string;
@@ -28,6 +40,14 @@ export interface TimelineEvent {
   description: string;
   timestamp: string;
   type: 'created' | 'receipt' | 'receipt_uploaded' | 'verification' | 'quote' | 'status_change';
+}
+
+export interface AdminBookingItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number | null;
+  formattedPrice: string;
 }
 
 export interface AdminBooking {
@@ -52,7 +72,9 @@ export interface AdminBooking {
   amount_paid?: number;
   booking_status: AdminBookingStatus;
   payment_status: PaymentStatus;
+  payments: PaymentRow[];
   receipts: AdminReceipt[];
+  items?: AdminBookingItem[];
   timeline: TimelineEvent[];
   created_at: string;
 }

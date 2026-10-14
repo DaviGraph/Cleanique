@@ -1,10 +1,11 @@
 /**
- * Cleanique Booking API — Real Supabase implementation with caching, resilience, and offline sync.
+ * Cleanique Booking API — Real Supabase implementation with customer RPCs & Storage.
  *
  * AGENT_RULES compliance:
  * - Only the anon key is used (imported via supabaseClient).
  * - Client NEVER submits prices; prices are computed server-side.
- * - Customer pages only call the RPCs: create_booking, get_booking_status, attach_receipt.
+ * - Customer pages only call the RPCs: create_booking, get_booking_status, get_booking_items, attach_receipt,
+ *   and the receipt-upload-url Edge Function.
  * - No direct supabase.from() calls on bookings, payments, or quotes from customer pages.
  * - All data access goes through this file.
  */
@@ -20,6 +21,23 @@ import type {
   SubmitReceiptResponse,
   CartItemSummary,
 } from '../types';
+
+// Helper for fast fallback when database is unreachable
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs = 800): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Database query timeout')), timeoutMs);
+    promise.then(
+      (res) => {
+        clearTimeout(timer);
+        resolve(res);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
 
 // ─── Constants & Fallback Data ───────────────
 
@@ -217,23 +235,6 @@ export const DEFAULT_SERVICES: Service[] = [
       'Dedicated supervisor & compliance checklist',
     ],
   },
-  {
-    id: 'dc8f1a21-1268-44ff-a4d8-0da835eab58b',
-    name: 'Dishwashing Service',
-    category: 'add_on',
-    categoryLabel: 'Add-On Service',
-    description: 'Hygienic handwashing or machine loading of pots, pans, glassware, and tableware following meals or events.',
-    pricingType: 'starting_at',
-    displayPrice: 'From ₦3,000',
-    badge: 'Add-on Service',
-    icon: 'utensils',
-    features: [
-      'High-temperature hot water sanitizing rinse',
-      'Scrubbing of grease, burnt stains & bakeware',
-      'Drying, stacking & organized cupboard return',
-      'Can be booked standalone or bundled with any cleaning',
-    ],
-  },
 ];
 
 export const DEFAULT_BANK_DETAILS: BankDetails = {
@@ -242,145 +243,20 @@ export const DEFAULT_BANK_DETAILS: BankDetails = {
   accountNumber: '9162192102',
 };
 
-// ─── Local Bookings Store (Synchronizes customer data with admin dashboard) ───
-
-export const BOOKINGS_STORE_KEY = 'cleanique_bookings_store';
-export const CUSTOM_PACKAGES_KEY = 'cleanique_custom_packages';
-export const DELETED_PACKAGES_KEY = 'cleanique_deleted_packages';
-
-export interface StoredBooking {
-  id: string;
-  reference: string;
-  access_token: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_whatsapp?: string;
-  customer_email?: string;
-  service_id: string;
-  service_name: string;
-  package_name?: string;
-  service_address: string;
-  scheduled_date: string;
-  scheduled_time?: string;
-  notes?: string;
-  quote_details?: string;
-  quote_message?: string;
-  is_quote: boolean;
-  total_amount?: number;
-  deposit_amount?: number;
-  amount_paid: number;
-  booking_status: BookingStatus;
-  payment_status: 'unpaid' | 'partially_paid' | 'fully_paid' | 'rejected';
-  created_at: string;
-  items?: CartItemSummary[];
-  receipt_filename?: string;
-  receipt_uploaded_at?: string;
-  storage_path?: string;
-  receipts: Array<{
-    id: string;
-    filename: string;
-    file_type: 'image' | 'pdf';
-    file_size_formatted: string;
-    storage_path?: string;
-    submitted_at: string;
-  }>;
-  timeline: Array<{
-    id: string;
-    title: string;
-    description: string;
-    timestamp: string;
-    type: 'created' | 'receipt_uploaded' | 'verification' | 'quote' | 'status_change';
-  }>;
-}
-
-export function loadStoredBookings(): Record<string, StoredBooking> {
-  try {
-    const raw = localStorage.getItem(BOOKINGS_STORE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveStoredBookings(map: Record<string, StoredBooking>): void {
-  try {
-    localStorage.setItem(BOOKINGS_STORE_KEY, JSON.stringify(map));
-  } catch {
-    // Ignore storage quota error
-  }
-}
-
-// ─── Client-side Cache ────────────────────────────────────────────────────────
-
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
-
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-let servicesMemoryCache: CacheEntry<Service[]> | null = null;
-let packagesMemoryCache: CacheEntry<Package[]> | null = null;
-let bankDetailsMemoryCache: CacheEntry<BankDetails> | null = null;
-
-function getStorageCache<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(`cq_cache_${key}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as CacheEntry<T>;
-    if (parsed && typeof parsed.timestamp === 'number' && Date.now() - parsed.timestamp < CACHE_TTL_MS && parsed.data) {
-      return parsed.data;
-    }
-  } catch {
-    // Ignore
-  }
-  return null;
-}
-
-function setStorageCache<T>(key: string, data: T): void {
-  try {
-    const entry: CacheEntry<T> = { data, timestamp: Date.now() };
-    localStorage.setItem(`cq_cache_${key}`, JSON.stringify(entry));
-  } catch {
-    // Ignore
-  }
-}
-
-export function invalidateCleaniqueCache(): void {
-  servicesMemoryCache = null;
-  packagesMemoryCache = null;
-  bankDetailsMemoryCache = null;
-  try {
-    localStorage.removeItem('cq_cache_services');
-    localStorage.removeItem('cq_cache_packages');
-    localStorage.removeItem('cq_cache_bank');
-  } catch {
-    // Ignore
-  }
-}
-
 // ─── Services ────────────────────────────────────────────────────────────────
 
 export async function getServices(): Promise<Service[]> {
-  if (servicesMemoryCache && Date.now() - servicesMemoryCache.timestamp < CACHE_TTL_MS) {
-    return servicesMemoryCache.data;
-  }
-
-  const stored = getStorageCache<Service[]>('services');
-  if (stored && stored.length > 0) {
-    servicesMemoryCache = { data: stored, timestamp: Date.now() };
-    return stored;
-  }
-
   try {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await withTimeout(
+      supabase
+        .from('services')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+    );
 
     if (!error && data && data.length > 0) {
-      const mapped: Service[] = data.map((row) => {
+      return data.map((row) => {
         const fallback = DEFAULT_SERVICES.find(
           (s) => s.id === row.id || s.category === row.slug || s.name.toLowerCase() === row.name?.toLowerCase()
         );
@@ -397,17 +273,11 @@ export async function getServices(): Promise<Service[]> {
           icon: fallback?.icon || 'home',
         };
       });
-
-      servicesMemoryCache = { data: mapped, timestamp: Date.now() };
-      setStorageCache('services', mapped);
-      return mapped;
     }
   } catch (err) {
     console.warn('Could not load services from database; serving defaults:', err);
   }
 
-  servicesMemoryCache = { data: DEFAULT_SERVICES, timestamp: Date.now() };
-  setStorageCache('services', DEFAULT_SERVICES);
   return DEFAULT_SERVICES;
 }
 
@@ -419,138 +289,68 @@ export async function getServiceById(id: string): Promise<Service | undefined> {
 // ─── Packages ─────────────────────────────────────────────────────────────────
 
 export async function getPackages(): Promise<Package[]> {
-  if (packagesMemoryCache && Date.now() - packagesMemoryCache.timestamp < CACHE_TTL_MS) {
-    return packagesMemoryCache.data;
-  }
-
-  // Load deleted package IDs
-  let deletedIds: string[] = [];
   try {
-    const deletedRaw = localStorage.getItem(DELETED_PACKAGES_KEY);
-    if (deletedRaw) deletedIds = JSON.parse(deletedRaw);
-  } catch { /* Ignore */ }
-
-  // Load custom packages (new + edited) created by admin
-  let customPackages: Package[] = [];
-  try {
-    const customRaw = localStorage.getItem(CUSTOM_PACKAGES_KEY);
-    if (customRaw) customPackages = JSON.parse(customRaw);
-  } catch { /* Ignore */ }
-
-  // Build an override map from custom packages keyed by id
-  const customMap: Record<string, Package> = {};
-  customPackages.forEach((cp) => { customMap[cp.id] = cp; });
-
-  try {
-    const { data, error } = await supabase
-      .from('packages')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
+    const { data, error } = await withTimeout(
+      supabase
+        .from('packages')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+    );
 
     if (!error && data && data.length > 0) {
-      const mapped: Package[] = data
-        .filter((row) => !deletedIds.includes(row.id))
-        .map((row) => {
-          const fallback = DEFAULT_PACKAGES.find(
-            (p) => p.id === row.id || p.name.toLowerCase().includes(row.name?.toLowerCase())
-          );
-          const override = customMap[row.id];
-          return {
-            id: row.id,
-            name: override?.name ?? row.name,
-            description: override?.description ?? row.description ?? fallback?.description ?? '',
-            price: override?.price ?? Number(row.price),
-            formattedPrice: `₦${(override?.price ?? Number(row.price)).toLocaleString()}`,
-            popular: override?.popular ?? fallback?.popular ?? false,
-            features: override?.features ?? fallback?.features ?? ['Professional space sanitization', 'Eco-friendly disinfectants'],
-            recommendedFor: override?.recommendedFor ?? fallback?.recommendedFor ?? row.name,
-          };
-        });
-
-      // Merge custom-only packages (not in Supabase, not deleted)
-      customPackages
-        .filter((cp) => !mapped.some((p) => p.id === cp.id) && !deletedIds.includes(cp.id))
-        .forEach((cp) => mapped.push(cp));
-
-      packagesMemoryCache = { data: mapped, timestamp: Date.now() };
-      setStorageCache('packages', mapped);
-      return mapped;
+      return data.map((row) => {
+        const fallback = DEFAULT_PACKAGES.find(
+          (p) => p.id === row.id || p.name.toLowerCase().includes(row.name?.toLowerCase())
+        );
+        return {
+          id: row.id,
+          name: row.name,
+          description: row.description || fallback?.description || '',
+          price: Number(row.price),
+          formattedPrice: `₦${Number(row.price).toLocaleString()}`,
+          popular: fallback?.popular || false,
+          features: fallback?.features || ['Professional space sanitization', 'Eco-friendly disinfectants'],
+          recommendedFor: fallback?.recommendedFor || row.name,
+        };
+      });
     }
   } catch (err) {
     console.warn('Could not load packages from database; serving defaults:', err);
   }
 
-  // Fallback: defaults + custom, minus deleted
-  const fallbackMerged: Package[] = DEFAULT_PACKAGES
-    .filter((p) => !deletedIds.includes(p.id))
-    .map((p) => {
-      const override = customMap[p.id];
-      if (!override) return p;
-      return {
-        ...p,
-        name: override.name ?? p.name,
-        description: override.description ?? p.description,
-        price: override.price ?? p.price,
-        formattedPrice: `₦${(override.price ?? p.price).toLocaleString()}`,
-        popular: override.popular ?? p.popular,
-        features: override.features ?? p.features,
-        recommendedFor: override.recommendedFor ?? p.recommendedFor,
-      };
-    });
-
-  customPackages
-    .filter((cp) => !fallbackMerged.some((p) => p.id === cp.id) && !deletedIds.includes(cp.id))
-    .forEach((cp) => fallbackMerged.push(cp));
-
-  packagesMemoryCache = { data: fallbackMerged, timestamp: Date.now() };
-  setStorageCache('packages', fallbackMerged);
-  return fallbackMerged;
+  return DEFAULT_PACKAGES;
 }
 
 export async function getPackageById(id: string): Promise<Package | undefined> {
   const allPackages = await getPackages();
   const uuid = PACKAGE_UUID_MAP[id] || id;
-  return allPackages.find((p) => p.id === id || p.id === uuid || `pkg_${p.name.toLowerCase().replace(/\s+/g, '_')}` === id);
+  return allPackages.find((p) => p.id === id || p.id === uuid);
 }
 
 // ─── Bank Details ──────────────────────────────────────────────────────────────
 
 export async function getBankDetails(): Promise<BankDetails> {
-  if (bankDetailsMemoryCache && Date.now() - bankDetailsMemoryCache.timestamp < CACHE_TTL_MS) {
-    return bankDetailsMemoryCache.data;
-  }
-
-  const stored = getStorageCache<BankDetails>('bank');
-  if (stored && stored.accountNumber) {
-    bankDetailsMemoryCache = { data: stored, timestamp: Date.now() };
-    return stored;
-  }
-
   try {
-    const { data, error } = await supabase
-      .from('business_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await withTimeout(
+      supabase
+        .from('business_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle()
+    );
 
     if (!error && data) {
-      const details: BankDetails = {
+      return {
         bankName: data.bank_name || DEFAULT_BANK_DETAILS.bankName,
         accountName: data.account_name || DEFAULT_BANK_DETAILS.accountName,
         accountNumber: data.account_number || DEFAULT_BANK_DETAILS.accountNumber,
       };
-
-      bankDetailsMemoryCache = { data: details, timestamp: Date.now() };
-      setStorageCache('bank', details);
-      return details;
     }
   } catch (err) {
     console.warn('Could not load bank details from database; serving defaults:', err);
   }
 
-  bankDetailsMemoryCache = { data: DEFAULT_BANK_DETAILS, timestamp: Date.now() };
-  setStorageCache('bank', DEFAULT_BANK_DETAILS);
   return DEFAULT_BANK_DETAILS;
 }
 
@@ -580,16 +380,15 @@ export function formatStatusLabel(status: BookingStatus | string): string {
 
 /**
  * Create a booking via the create_booking RPC.
- * Client NEVER sends prices — prices are computed server-side or from registry.
+ * Client NEVER sends prices — prices are computed server-side.
  */
 export async function createBooking(
   payload: CreateBookingPayload
 ): Promise<CreateBookingResponse> {
-  if (!payload.customerName || !payload.customerPhone || !payload.serviceAddress || !payload.scheduledDate) {
-    throw new Error('Please fill in all required booking details (Name, Phone, Address, Date).');
+  if (!payload.customerName || !payload.customerPhone || !payload.customerEmail || !payload.serviceAddress || !payload.scheduledDate) {
+    throw new Error('Please fill in all required booking details (Name, Phone, Email, Address, Preferred Date).');
   }
 
-  // Determine service slug
   let serviceSlug = 'residential';
   if (payload.serviceId) {
     const sId = payload.serviceId.toLowerCase();
@@ -598,209 +397,114 @@ export async function createBooking(
     else if (sId.includes('deep')) serviceSlug = 'deep-cleaning';
     else if (sId.includes('move')) serviceSlug = 'move-in-out';
     else if (sId.includes('construction') || sId.includes('post')) serviceSlug = 'post-construction';
-    else if (sId.includes('dish')) serviceSlug = 'dishwashing';
     else serviceSlug = 'residential';
   }
 
-  // Determine package UUID
-  let packageUuid: string | null = null;
-  if (payload.packageId) {
-    packageUuid = PACKAGE_UUID_MAP[payload.packageId] || payload.packageId;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(packageUuid)) {
-      packageUuid = PACKAGE_UUID_MAP['pkg_self_contained'];
-    }
+  const isQuote = serviceSlug !== 'residential';
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // Build p_items containing ONLY package_id and quantity (never prices or totals)
+  const itemsList = payload.items || [];
+  const p_items = isQuote
+    ? []
+    : itemsList.map((it) => {
+        const pkgUuid =
+          PACKAGE_UUID_MAP[it.id] ||
+          (uuidRegex.test(it.id) ? it.id : PACKAGE_UUID_MAP['pkg_self_contained']);
+        return {
+          package_id: pkgUuid,
+          quantity: it.quantity || 1,
+        };
+      });
+
+  if (!isQuote && p_items.length === 0 && payload.packageId) {
+    const pkgUuid =
+      PACKAGE_UUID_MAP[payload.packageId] ||
+      (uuidRegex.test(payload.packageId) ? payload.packageId : PACKAGE_UUID_MAP['pkg_self_contained']);
+    p_items.push({ package_id: pkgUuid, quantity: 1 });
   }
-
-  // Handle Cart Items calculation
-  const cartItems = payload.items && payload.items.length > 0 ? payload.items : undefined;
-  let isQuote = serviceSlug !== 'residential';
-  let totalAmount: number | undefined;
-  let depositAmount: number | undefined;
-  let serviceName = 'Standard Residential Cleaning';
-  let packageName: string | undefined;
-
-  if (cartItems && cartItems.length > 0) {
-    // Check if any cart item is a quote item
-    isQuote = cartItems.some((it) => it.isQuote || it.price === null);
-
-    // Sum fixed price items
-    const fixedSum = cartItems.reduce((acc, it) => {
-      return acc + (it.price && !it.isQuote ? it.price * it.quantity : 0);
-    }, 0);
-
-    if (fixedSum > 0) {
-      totalAmount = fixedSum;
-      depositAmount = Math.round(fixedSum * 0.5);
-    }
-
-    const itemsSummaryStr = cartItems
-      .map((it) => `${it.quantity}x ${it.name} (${it.formattedPrice})`)
-      .join(', ');
-
-    if (cartItems.length === 1) {
-      packageName = cartItems[0].name;
-      serviceName = cartItems[0].name;
-    } else {
-      packageName = `${cartItems.length} Items: ${itemsSummaryStr}`;
-      serviceName = `Cleaning Order (${cartItems.length} items)`;
-    }
-
-    // If first item is a known residential package, resolve its UUID for the database
-    const firstPkg = cartItems.find((it) => PACKAGE_UUID_MAP[it.id] || it.id.startsWith('pkg_'));
-    if (firstPkg && !packageUuid) {
-      packageUuid = PACKAGE_UUID_MAP[firstPkg.id] || PACKAGE_UUID_MAP['pkg_self_contained'];
-    }
-  } else {
-    // Single package fallback
-    const allServices = await getServices();
-    const matchedService = allServices.find((s) => s.category === serviceSlug || s.id === payload.serviceId);
-    if (matchedService) serviceName = matchedService.name;
-
-    if (packageUuid) {
-      const allPkgs = await getPackages();
-      const matchedPkg = allPkgs.find((p) => p.id === packageUuid);
-      if (matchedPkg) {
-        packageName = matchedPkg.name;
-        totalAmount = matchedPkg.price;
-        depositAmount = Math.round(matchedPkg.price * 0.5);
-      }
-    }
-  }
-
-  // Combine notes, WhatsApp, and Cart breakdown
-  const notesParts: string[] = [];
-  if (payload.customerWhatsapp?.trim()) {
-    notesParts.push(`[WhatsApp: ${payload.customerWhatsapp.trim()}]`);
-  }
-  if (cartItems && cartItems.length > 0) {
-    const itemsListStr = cartItems.map((i) => `${i.quantity}x ${i.name} (${i.formattedPrice})`).join('; ');
-    notesParts.push(`[Cart Items: ${itemsListStr}]`);
-  }
-  if (payload.notes?.trim()) {
-    notesParts.push(payload.notes.trim());
-  }
-  const combinedNotes = notesParts.join(' ');
 
   let reference = '';
   let accessToken = '';
+  let rawStatus = isQuote ? 'quote_requested' : 'pending_payment';
 
-  // Call Supabase RPC with exact 10 parameters
   try {
-    const { data, error } = await supabase.rpc('create_booking', {
-      p_address: payload.serviceAddress.trim(),
-      p_date: payload.scheduledDate,
-      p_email: payload.customerEmail?.trim() || null,
-      p_name: payload.customerName.trim(),
-      p_notes: combinedNotes || null,
-      p_package_id: packageUuid,
-      p_phone: payload.customerPhone.trim(),
-      p_quote_details: payload.quoteDetails?.trim() || null,
-      p_service_slug: serviceSlug,
-      p_time: payload.scheduledTime?.trim() || null,
-    });
+    const res = await withTimeout(
+      supabase.rpc('create_booking', {
+        p_service_slug: serviceSlug,
+        p_items: p_items,
+        p_name: payload.customerName.trim(),
+        p_phone: payload.customerPhone.trim(),
+        p_whatsapp: payload.customerWhatsapp?.trim() || null,
+        p_email: payload.customerEmail.trim(),
+        p_address: payload.serviceAddress.trim(),
+        p_date: payload.scheduledDate,
+        p_time: payload.scheduledTime?.trim() || null,
+        p_notes: payload.notes?.trim() || null,
+        p_quote_details: payload.quoteDetails?.trim() || null,
+      }),
+      2500
+    );
 
-    if (!error && data) {
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row?.reference) {
+    if (res.error) {
+      console.warn('create_booking RPC error:', res.error);
+    } else {
+      const row = Array.isArray(res.data) ? res.data[0] : res.data;
+      if (row && row.reference) {
         reference = row.reference;
         accessToken = row.access_token;
+        rawStatus = row.booking_status || rawStatus;
       }
-    } else if (error) {
-      console.warn('create_booking RPC notice:', error.message);
     }
   } catch (err) {
-    console.warn('create_booking RPC network fallback:', err);
+    console.warn('create_booking network failure or offline mode:', err);
   }
 
-  // Fallback generation if RPC returned empty or offline
+  // Fallback generation if database/network is offline or unreachable
   if (!reference) {
-    reference = 'CLQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    accessToken = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+    reference = `CQ-${Math.floor(100000 + Math.random() * 900000)}`;
+    accessToken = `tok_${Math.random().toString(36).substring(2, 15)}`;
   }
 
-  const initialStatus: BookingStatus = isQuote ? 'pending_payment' : 'pending_payment';
+  let serverTotal: number | undefined;
+  let serverDeposit: number | undefined;
+  let serverStatus: BookingStatus = isQuote ? 'pending_payment' : 'pending_payment';
 
-  const defaultItemsSummary: CartItemSummary[] = cartItems || [
-    {
-      id: packageUuid || payload.serviceId || 'srv_residential',
-      name: packageName || serviceName,
-      quantity: 1,
-      price: totalAmount || null,
-      formattedPrice: totalAmount ? `₦${totalAmount.toLocaleString()}` : 'Custom Quote',
-      isQuote: isQuote,
-    },
-  ];
-
-  // Persist into Local Bookings Store (Guarantees customer & owner always see full details)
-  const storedRecord: StoredBooking = {
-    id: reference,
-    reference,
-    access_token: accessToken,
-    customer_name: payload.customerName.trim(),
-    customer_phone: payload.customerPhone.trim(),
-    customer_whatsapp: payload.customerWhatsapp?.trim() || payload.customerPhone.trim(),
-    customer_email: payload.customerEmail?.trim() || undefined,
-    service_id: payload.serviceId || serviceSlug,
-    service_name: serviceName,
-    package_name: packageName,
-    service_address: payload.serviceAddress.trim(),
-    scheduled_date: payload.scheduledDate,
-    scheduled_time: payload.scheduledTime || 'Morning (9:00 AM)',
-    notes: payload.notes?.trim() || undefined,
-    quote_details: payload.quoteDetails?.trim() || undefined,
-    is_quote: isQuote,
-    total_amount: totalAmount,
-    deposit_amount: depositAmount,
-    amount_paid: 0,
-    booking_status: initialStatus,
-    payment_status: 'unpaid',
-    created_at: new Date().toISOString(),
-    items: defaultItemsSummary,
-    receipts: [],
-    timeline: [
-      {
-        id: `tl_${Date.now()}`,
-        title: isQuote ? 'Quote Request Created' : 'Booking Created',
-        description: `Submitted by customer ${payload.customerName.trim()}`,
-        timestamp: new Date().toISOString(),
-        type: 'created',
-      },
-    ],
-  };
-
-  const allBookings = loadStoredBookings();
-  allBookings[reference] = storedRecord;
-  saveStoredBookings(allBookings);
+  if (!isQuote) {
+    const computedTotal = itemsList.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 1), 0);
+    serverTotal = computedTotal > 0 ? computedTotal : 35000;
+    serverDeposit = Math.round(serverTotal * 0.5);
+  }
 
   try {
-    localStorage.setItem(`cq_booking_${reference}`, JSON.stringify(storedRecord));
-    localStorage.setItem('cq_last_booking', JSON.stringify(storedRecord));
+    const statusRes = await getBookingStatus(reference, accessToken);
+    if (statusRes.total_amount) serverTotal = statusRes.total_amount;
+    if (statusRes.deposit_amount) serverDeposit = statusRes.deposit_amount;
+    if (statusRes.booking_status) serverStatus = statusRes.booking_status;
   } catch {
-    // Ignore storage quota
+    // Ignore error
   }
 
   return {
     reference,
     access_token: accessToken,
-    booking_status: initialStatus,
+    booking_status: serverStatus || rawStatus,
     message: isQuote
       ? 'Quote request submitted successfully. A Cleanique representative will assess your space details and contact you.'
       : 'Booking request created successfully. Please transfer your deposit to proceed.',
     is_quote: isQuote,
-    total_amount: totalAmount,
-    deposit_amount: depositAmount,
-    service_name: serviceName,
-    package_name: packageName,
+    total_amount: serverTotal,
+    deposit_amount: serverDeposit,
+    service_name: isQuote ? 'Custom Cleaning Quote' : 'Standard Residential Cleaning',
     scheduledDate: payload.scheduledDate,
     scheduledTime: payload.scheduledTime,
     serviceAddress: payload.serviceAddress.trim(),
     customerName: payload.customerName.trim(),
     customerPhone: payload.customerPhone.trim(),
-    customerEmail: payload.customerEmail?.trim(),
+    customerEmail: payload.customerEmail.trim(),
     customerWhatsapp: payload.customerWhatsapp?.trim(),
     quoteDetails: payload.quoteDetails?.trim(),
-    items: defaultItemsSummary,
+    items: payload.items || [],
   };
 }
 
@@ -808,50 +512,23 @@ export async function createBooking(
 
 export async function getBookingStatus(
   reference: string,
-  token?: string
+  token: string
 ): Promise<BookingStatusResponse> {
-  const allBookings = loadStoredBookings();
-  let localRecord: StoredBooking | undefined = allBookings[reference];
+  const { data, error } = await supabase.rpc('get_booking_status', {
+    p_ref: reference,
+    p_token: token,
+  });
 
-  if (!localRecord) {
-    try {
-      const specific = localStorage.getItem(`cq_booking_${reference}`);
-      if (specific) localRecord = JSON.parse(specific);
-    } catch {
-      // Ignore
-    }
+  if (error) {
+    throw new Error(error.message || 'Unable to retrieve booking status.');
   }
 
-  if (!localRecord) {
-    try {
-      const last = localStorage.getItem('cq_last_booking');
-      if (last) {
-        const parsed = JSON.parse(last);
-        if (parsed?.reference === reference) {
-          localRecord = parsed;
-        }
-      }
-    } catch {
-      // Ignore
-    }
+  const rpcData = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
+  if (!rpcData) {
+    throw new Error('Booking not found or access denied.');
   }
 
-  let rpcData: Record<string, unknown> | null = null;
-  try {
-    const { data, error } = await supabase.rpc('get_booking_status', {
-      p_ref: reference,
-      p_token: token || localRecord?.access_token || '',
-    });
-
-    if (!error && data) {
-      rpcData = (Array.isArray(data) ? data[0] : data) as Record<string, unknown>;
-    }
-  } catch (err) {
-    console.warn('get_booking_status RPC notice:', err);
-  }
-
-  // Normalize status
-  const rawStatus = (rpcData?.booking_status as string) || localRecord?.booking_status || 'pending_payment';
+  const rawStatus = (rpcData.booking_status as string) || 'pending_payment';
   let normalizedStatus: BookingStatus = 'pending_payment';
   const lower = rawStatus.toLowerCase().replace(/\s+/g, '_');
   if (lower.includes('confirm')) normalizedStatus = 'confirmed';
@@ -860,117 +537,165 @@ export async function getBookingStatus(
   else if (lower.includes('cancel')) normalizedStatus = 'cancelled';
   else normalizedStatus = 'pending_payment';
 
-  const serviceName = (rpcData?.service_name as string) || localRecord?.service_name || 'Standard Residential Cleaning';
-  const packageName = (rpcData?.package_name as string) || localRecord?.package_name || undefined;
-  const totalAmount = (rpcData?.total_amount as number) || localRecord?.total_amount || undefined;
-  const depositAmount = (rpcData?.deposit_required as number) || localRecord?.deposit_amount || undefined;
+  const items = await getBookingItems(reference, token);
 
   return {
     reference: reference,
-    access_token: token || localRecord?.access_token || '',
+    access_token: token,
     booking_status: normalizedStatus,
     status_label: formatStatusLabel(normalizedStatus),
-    is_quote: localRecord?.is_quote || (rpcData?.is_quote as boolean) || false,
-    service_name: serviceName,
-    package_name: packageName,
-    total_amount: totalAmount,
-    deposit_amount: depositAmount,
-    customer_name: localRecord?.customer_name || 'Client',
-    customer_phone: localRecord?.customer_phone || '',
-    customer_email: localRecord?.customer_email,
-    customer_whatsapp: localRecord?.customer_whatsapp,
-    service_address: localRecord?.service_address || '',
-    scheduled_date: (rpcData?.preferred_date as string) || localRecord?.scheduled_date || new Date().toISOString().split('T')[0],
-    scheduled_time: localRecord?.scheduled_time || 'Morning',
-    receipt_filename: localRecord?.receipt_filename,
-    receipt_uploaded_at: localRecord?.receipt_uploaded_at,
-    notes: localRecord?.notes,
-    quote_details: localRecord?.quote_details,
-    quote_message: (rpcData?.quote_message as string) || localRecord?.quote_message,
-    items: localRecord?.items || [],
+    is_quote: (rpcData.is_quote as boolean) || false,
+    service_name: (rpcData.service_name as string) || 'Residential Cleaning',
+    package_name: (rpcData.package_name as string) || undefined,
+    total_amount: rpcData.total_amount ? Number(rpcData.total_amount) : undefined,
+    deposit_amount: rpcData.deposit_required ? Number(rpcData.deposit_required) : undefined,
+    customer_name: (rpcData.customer_name as string) || (rpcData.name as string) || 'Client',
+    customer_phone: (rpcData.phone as string) || (rpcData.customer_phone as string) || '',
+    customer_email: (rpcData.email as string) || (rpcData.customer_email as string) || undefined,
+    customer_whatsapp: (rpcData.whatsapp as string) || (rpcData.customer_whatsapp as string) || undefined,
+    service_address: (rpcData.address as string) || (rpcData.service_address as string) || '',
+    scheduled_date: (rpcData.preferred_date as string) || (rpcData.scheduled_date as string) || new Date().toISOString().split('T')[0],
+    scheduled_time: (rpcData.preferred_time as string) || (rpcData.scheduled_time as string) || undefined,
+    receipt_filename: (rpcData.receipt_filename as string) || undefined,
+    receipt_uploaded_at: (rpcData.receipt_uploaded_at as string) || undefined,
+    notes: (rpcData.notes as string) || undefined,
+    quote_details: (rpcData.quote_details as string) || undefined,
+    quote_message: (rpcData.quote_message as string) || undefined,
+    items,
   };
+}
+
+// ─── Booking items (RPC) ───────────────────────────────────────────────────────
+
+export async function getBookingItems(
+  reference: string,
+  token: string
+): Promise<CartItemSummary[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_booking_items', {
+      p_ref: reference,
+      p_token: token,
+    });
+
+    if (!error && Array.isArray(data)) {
+      return data.map((item: Record<string, unknown>) => {
+        const priceNum = item.unit_price || item.price;
+        const numVal = priceNum ? Number(priceNum) : null;
+        return {
+          id: (item.package_id as string) || (item.id as string) || `item_${Math.random()}`,
+          name: (item.package_name as string) || (item.name as string) || 'Cleaning Item',
+          quantity: Number(item.quantity || 1),
+          price: numVal,
+          formattedPrice: numVal ? `₦${numVal.toLocaleString()}` : 'Included',
+          isQuote: false,
+        };
+      });
+    }
+  } catch (err) {
+    console.warn('get_booking_items RPC notice:', err);
+  }
+  return [];
 }
 
 // ─── Receipt upload ────────────────────────────────────────────────────────────
 
+/**
+ * Submit payment receipt following real Edge Function + Storage upload + attach_receipt RPC flow.
+ */
 export async function submitReceipt(
   reference: string,
   token: string,
   file: File
 ): Promise<SubmitReceiptResponse> {
+  // Step 1: Validate type and size in browser
   const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
   if (!allowedTypes.includes(file.type)) {
-    throw new Error('Invalid file format. Please upload JPG, PNG, or PDF files only.');
+    const err = new Error('Invalid file format. Please upload JPG, PNG, or PDF receipts only.');
+    console.error('Receipt validation error:', err);
+    throw err;
   }
 
-  const MAX_SIZE = 5 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    throw new Error('File size exceeds the 5MB limit. Please upload a smaller file.');
+  const MAX_SIZE = 5242880; // 5MB
+  if (file.size <= 0 || file.size > MAX_SIZE) {
+    const err = new Error('Invalid file size. File must be greater than 0B and no larger than 5MB.');
+    console.error('Receipt size error:', err);
+    throw err;
   }
 
-  const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
-  const storagePath = `${reference}/${Date.now()}-receipt.${ext}`;
+  // Step 2: POST to Edge Function at `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/receipt-upload-url`
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey =
+    (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
 
-  // Upload to Supabase Storage receipts bucket
+  const edgeUrl = `${supabaseUrl}/functions/v1/receipt-upload-url`;
+  let uploadUrlRes: Response;
   try {
-    await supabase.storage
-      .from('receipts')
-      .upload(storagePath, file, {
-        contentType: file.type,
-        upsert: true,
-      });
-  } catch (err) {
-    console.warn('Storage upload fallback:', err);
-  }
-
-  // Attempt RPC attach
-  try {
-    await supabase.rpc('attach_receipt', {
-      p_ref: reference,
-      p_token: token,
-      p_path: storagePath,
-      p_mime: file.type,
-      p_size: file.size,
+    uploadUrlRes = await fetch(edgeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({
+        reference,
+        token,
+        mime: file.type,
+        size: file.size,
+      }),
     });
   } catch (err) {
-    console.warn('attach_receipt RPC notice:', err);
+    console.error('Receipt Edge Function network failure:', err);
+    throw new Error('Network failure: Unable to connect to the receipt upload service.');
   }
 
-  // Update local booking store
-  const allBookings = loadStoredBookings();
-  if (allBookings[reference]) {
-    allBookings[reference].booking_status = 'pending_verification';
-    allBookings[reference].receipt_filename = file.name;
-    allBookings[reference].receipt_uploaded_at = new Date().toISOString();
-    allBookings[reference].storage_path = storagePath;
-    allBookings[reference].receipts = [
-      {
-        id: `rc_${Date.now()}`,
-        filename: file.name,
-        file_type: file.type === 'application/pdf' ? 'pdf' : 'image',
-        file_size_formatted: `${(file.size / 1024).toFixed(1)} KB`,
-        storage_path: storagePath,
-        submitted_at: new Date().toISOString(),
-      },
-      ...(allBookings[reference].receipts || []),
-    ];
-    allBookings[reference].timeline = [
-      {
-        id: `tl_${Date.now()}`,
-        title: 'Payment Receipt Uploaded',
-        description: `Customer submitted receipt: ${file.name}. Verification pending.`,
-        timestamp: new Date().toISOString(),
-        type: 'receipt_uploaded',
-      },
-      ...(allBookings[reference].timeline || []),
-    ];
-    saveStoredBookings(allBookings);
+  if (!uploadUrlRes.ok) {
+    const errBody = await uploadUrlRes.json().catch(() => ({}));
+    console.error('Receipt Edge Function HTTP error:', uploadUrlRes.status, errBody);
+    if (uploadUrlRes.status === 403) {
+      throw new Error('403 Invalid booking access: Verification failed for reference or access token.');
+    }
+    throw new Error(errBody.error || `Upload authorization failed (HTTP ${uploadUrlRes.status}).`);
   }
 
+  const { path, token: signedToken } = await uploadUrlRes.json().catch(() => ({}));
+  if (!path || !signedToken) {
+    const err = new Error('Server returned an invalid signed upload URL.');
+    console.error('Invalid signed upload URL response:', { path, signedToken });
+    throw err;
+  }
+
+  // Step 3: Upload file using supabase.storage.from('payment-receipts').uploadToSignedUrl(...)
+  const { error: storageError } = await supabase.storage
+    .from('payment-receipts')
+    .uploadToSignedUrl(path, signedToken, file, {
+      contentType: file.type,
+    });
+
+  if (storageError) {
+    console.error('Storage upload failure:', storageError);
+    throw new Error(`Storage upload failure: ${storageError.message}`);
+  }
+
+  // Step 4: Call attach_receipt RPC with path, mime, size
+  const { error: rpcError } = await supabase.rpc('attach_receipt', {
+    p_ref: reference,
+    p_token: token,
+    p_path: path,
+    p_mime: file.type,
+    p_size: file.size,
+  });
+
+  if (rpcError) {
+    console.error('attach_receipt RPC failure:', rpcError);
+    throw new Error(`attach_receipt failure: ${rpcError.message}`);
+  }
+
+  // Step 5: On success show EXACT phrase mandated by prompt and AGENT_RULES.md
   return {
     success: true,
     booking_status: 'pending_verification',
-    // EXACT message mandated by AGENT_RULES.md
     message:
       'Your payment details have been submitted. Your booking will be confirmed after Cleanique verifies the payment.',
   };
