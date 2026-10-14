@@ -642,10 +642,12 @@ export async function submitReceipt(
       }),
     });
   } catch (err) {
+    // Gracefully format network connection failures / offline backend errors
+    const isNetworkErr = err instanceof TypeError && err.message.includes('fetch');
     throw new Error(
-      `Failed to connect to receipt upload service: ${
-        err instanceof Error ? err.message : 'Network error'
-      }`
+      isNetworkErr
+        ? 'Unable to connect to the receipt upload service. Please check your internet connection or try again.'
+        : `Receipt upload service connection error: ${err instanceof Error ? err.message : 'Network error'}`
     );
   }
 
