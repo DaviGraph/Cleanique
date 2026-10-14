@@ -103,16 +103,31 @@ export async function getAdminBookings(filters?: {
   paymentStatus?: string;
   searchQuery?: string;
 }): Promise<AdminBooking[]> {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      services (*),
-      booking_items (*),
-      quotes (*),
-      payments (*)
-    `)
-    .order('created_at', { ascending: false });
+  let data: any[] | null = null;
+  let error: any = null;
+
+  try {
+    const res = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        services (*),
+        booking_items (*),
+        quotes (*),
+        payments (*)
+      `)
+      .order('created_at', { ascending: false });
+    data = res.data;
+    error = res.error;
+  } catch (err) {
+    const isFetchError = err instanceof TypeError && err.message.includes('fetch');
+    if (isFetchError) {
+      console.warn('Database offline / fetch error when querying bookings:', err);
+      // Return empty array or fallback records instead of throwing raw TypeError
+      return [];
+    }
+    throw new Error(`Failed to load bookings from database: ${err instanceof Error ? err.message : 'Connection error'}`);
+  }
 
   if (error) {
     throw new Error(`Failed to load bookings from database: ${error.message}`);
@@ -219,17 +234,28 @@ export async function getAdminBookings(filters?: {
 }
 
 export async function getAdminBookingById(id: string): Promise<AdminBooking | null> {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      services (*),
-      booking_items (*),
-      quotes (*),
-      payments (*)
-    `)
-    .or(`id.eq.${id},reference.eq.${id}`)
-    .maybeSingle();
+  let data: any = null;
+  let error: any = null;
+
+  try {
+    const res = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        services (*),
+        booking_items (*),
+        quotes (*),
+        payments (*)
+      `)
+      .or(`id.eq.${id},reference.eq.${id}`)
+      .maybeSingle();
+    data = res.data;
+    error = res.error;
+  } catch (err) {
+    console.warn('Database offline / fetch error when querying booking detail:', err);
+    const all = await getAdminBookings();
+    return all.find((b) => b.id === id || b.reference === id) || null;
+  }
 
   if (error || !data) {
     const all = await getAdminBookings();
