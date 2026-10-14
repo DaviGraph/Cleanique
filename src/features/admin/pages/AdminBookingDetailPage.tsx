@@ -5,6 +5,8 @@ import {
   createSignedReceiptUrl,
   ownerReviewPayment,
   ownerSetQuote,
+  updateBookingStatus,
+  updatePaymentStatus,
 } from '../lib/adminApi';
 import type { AdminBooking, PaymentRow } from '../types';
 import {
@@ -40,6 +42,9 @@ export const AdminBookingDetailPage: React.FC = () => {
   const [quoteAmount, setQuoteAmount] = useState<string>('');
   const [quoteMessage, setQuoteMessage] = useState<string>('');
   const [isSendingQuote, setIsSendingQuote] = useState(false);
+
+  // Direct Status Override State
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -632,8 +637,72 @@ export const AdminBookingDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Direct Status Management Controls */}
+            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E0ECE8' }}>
+              <h4 className="cq-admin-card-title" style={{ fontSize: '0.88rem', marginBottom: '12px' }}>
+                Update Booking Status
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <select
+                  value={booking.booking_status}
+                  disabled={isUpdatingStatus}
+                  onChange={async (e) => {
+                    const newSt = e.target.value;
+                    try {
+                      setIsUpdatingStatus(true);
+                      setActionError(null);
+                      await updateBookingStatus(booking.id, newSt);
+                      await reloadBooking();
+                      setActionSuccess(`Booking status updated to ${newSt.replace(/_/g, ' ')}!`);
+                    } catch (err) {
+                      setActionError(err instanceof Error ? err.message : 'Failed to update status.');
+                    } finally {
+                      setIsUpdatingStatus(false);
+                    }
+                  }}
+                  className="cq-select"
+                  style={{ fontSize: '0.88rem' }}
+                >
+                  <option value="pending_payment">Pending Payment</option>
+                  <option value="pending_verification">Pending Verification</option>
+                  <option value="quote_requested">Quote Requested</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+
+                <label className="cq-admin-field-label" style={{ marginTop: '8px' }}>Update Payment Status</label>
+                <select
+                  value={booking.payment_status}
+                  disabled={isUpdatingStatus}
+                  onChange={async (e) => {
+                    const newPaySt = e.target.value;
+                    try {
+                      setIsUpdatingStatus(true);
+                      setActionError(null);
+                      await updatePaymentStatus(booking.id, newPaySt);
+                      await reloadBooking();
+                      setActionSuccess(`Payment status updated to ${newPaySt.replace(/_/g, ' ')}!`);
+                    } catch (err) {
+                      setActionError(err instanceof Error ? err.message : 'Failed to update payment status.');
+                    } finally {
+                      setIsUpdatingStatus(false);
+                    }
+                  }}
+                  className="cq-select"
+                  style={{ fontSize: '0.88rem' }}
+                >
+                  <option value="unpaid">Unpaid</option>
+                  <option value="pending_verification">Pending Verification</option>
+                  <option value="partially_paid">Partially Paid</option>
+                  <option value="fully_paid">Fully Paid</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
             {/* Tappable Contact Links */}
-            <div className="cq-admin-quick-contact">
+            <div className="cq-admin-quick-contact" style={{ marginTop: '20px' }}>
               <h4 className="cq-admin-card-title" style={{ fontSize: '0.85rem', marginBottom: '8px' }}>
                 Contact Customer
               </h4>

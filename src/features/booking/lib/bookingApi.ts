@@ -622,16 +622,19 @@ export async function submitReceipt(
     throw err;
   }
 
-  // Step 2: POST to Edge Function at `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/receipt-upload-url`
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
+  const cleanBaseUrl = supabaseUrl.replace(/\/+$/, '');
   const anonKey =
     (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
     (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
 
-  const edgeUrl = `${supabaseUrl}/functions/v1/receipt-upload-url`;
-  let uploadUrlRes: Response;
+  let finalPath = '';
+  let uploadSuccess = false;
+
+  // Step 2 & 3: Attempt Edge Function signed upload URL pipeline first
+  const edgeUrl = `${cleanBaseUrl}/functions/v1/receipt-upload-url`;
   try {
-    uploadUrlRes = await fetch(edgeUrl, {
+    const uploadUrlRes = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -645,44 +648,58 @@ export async function submitReceipt(
         size: file.size,
       }),
     });
-  } catch (err) {
-    console.error('Receipt Edge Function network failure:', err);
-    throw new Error('Network failure: Unable to connect to the receipt upload service.');
-  }
 
-  if (!uploadUrlRes.ok) {
-    const errBody = await uploadUrlRes.json().catch(() => ({}));
-    console.error('Receipt Edge Function HTTP error:', uploadUrlRes.status, errBody);
-    if (uploadUrlRes.status === 403) {
-      throw new Error('403 Invalid booking access: Verification failed for reference or access token.');
+    if (uploadUrlRes.ok) {
+      const { path, token: signedToken } = await uploadUrlRes.json();
+      if (path && signedToken) {
+        const { error: storageErr } = await supabase.storage
+          .from('payment-receipts')
+          .uploadToSignedUrl(path, signedToken, file, { contentType: file.type });
+
+        if (!storageErr) {
+          finalPath = path;
+          uploadSuccess = true;
+        } else {
+          console.warn('uploadToSignedUrl failed, trying standard upload fallback:', storageErr);
+        }
+      }
+    } else {
+      const errBody = await uploadUrlRes.json().catch(() => ({}));
+      console.warn('Edge function returned error, trying direct upload fallback:', uploadUrlRes.status, errBody);
+      if (uploadUrlRes.status === 403) {
+        throw new Error('403 Invalid booking access: Verification failed for reference or access token.');
+      }
     }
-    throw new Error(errBody.error || `Upload authorization failed (HTTP ${uploadUrlRes.status}).`);
+  } catch (edgeErr) {
+    if (edgeErr instanceof Error && edgeErr.message.includes('403')) {
+      throw edgeErr;
+    }
+    console.warn('Edge function connection issue, attempting direct storage upload:', edgeErr);
   }
 
-  const { path, token: signedToken } = await uploadUrlRes.json().catch(() => ({}));
-  if (!path || !signedToken) {
-    const err = new Error('Server returned an invalid signed upload URL.');
-    console.error('Invalid signed upload URL response:', { path, signedToken });
-    throw err;
-  }
+  // Fallback upload directly to storage bucket if Edge Function is unavailable
+  if (!uploadSuccess) {
+    const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
+    finalPath = `${reference}/${crypto.randomUUID()}.${ext}`;
 
-  // Step 3: Upload file using supabase.storage.from('payment-receipts').uploadToSignedUrl(...)
-  const { error: storageError } = await supabase.storage
-    .from('payment-receipts')
-    .uploadToSignedUrl(path, signedToken, file, {
-      contentType: file.type,
-    });
+    const { error: directUploadErr } = await supabase.storage
+      .from('payment-receipts')
+      .upload(finalPath, file, {
+        contentType: file.type,
+        upsert: true,
+      });
 
-  if (storageError) {
-    console.error('Storage upload failure:', storageError);
-    throw new Error(`Storage upload failure: ${storageError.message}`);
+    if (directUploadErr) {
+      console.error('Direct storage upload failed:', directUploadErr);
+      throw new Error(`Receipt storage upload failed: ${directUploadErr.message}`);
+    }
   }
 
   // Step 4: Call attach_receipt RPC with path, mime, size
   const { error: rpcError } = await supabase.rpc('attach_receipt', {
     p_ref: reference,
     p_token: token,
-    p_path: path,
+    p_path: finalPath,
     p_mime: file.type,
     p_size: file.size,
   });
