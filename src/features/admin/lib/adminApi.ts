@@ -426,6 +426,42 @@ export async function ownerSetQuote(params: {
   }
 }
 
+export async function updateBookingStatus(
+  bookingId: string,
+  newStatus: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      booking_status: newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .or(`id.eq.${bookingId},reference.eq.${bookingId}`);
+
+  if (error) {
+    console.error('Failed to update booking_status in database:', error);
+    throw new Error(`Failed to update booking status: ${error.message}`);
+  }
+}
+
+export async function updatePaymentStatus(
+  bookingId: string,
+  newPaymentStatus: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      payment_status: newPaymentStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .or(`id.eq.${bookingId},reference.eq.${bookingId}`);
+
+  if (error) {
+    console.error('Failed to update payment_status in database:', error);
+    throw new Error(`Failed to update payment status: ${error.message}`);
+  }
+}
+
 // ─── Settings management ───────────────────────────────────────────────────────
 
 export async function getSettings(): Promise<CleaniqueSetting[]> {
