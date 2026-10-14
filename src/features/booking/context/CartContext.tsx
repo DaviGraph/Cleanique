@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { CartItem } from '../types';
 
 interface CartContextType {
@@ -19,28 +19,11 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'cleanique_cart_session';
-
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const stored = sessionStorage.getItem(CART_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [items, setItems] = useState<CartItem[]>([]);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-    } catch {
-      // Ignore quota error
-    }
-  }, [items]);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -118,11 +101,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setItems([]);
-    try {
-      sessionStorage.removeItem(CART_STORAGE_KEY);
-    } catch {
-      // Ignore
-    }
   };
 
   const openCart = () => setIsCartOpen(true);
