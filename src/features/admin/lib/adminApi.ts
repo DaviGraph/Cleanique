@@ -129,6 +129,7 @@ export async function getAdminBookings(filters?: {
   let data: any[] | null = null;
   let error: any = null;
 
+  // Try comprehensive joined query first
   try {
     const res = await supabase
       .from('bookings')
@@ -143,13 +144,22 @@ export async function getAdminBookings(filters?: {
     data = res.data;
     error = res.error;
   } catch (err) {
-    const isFetchError = err instanceof TypeError && err.message.includes('fetch');
-    if (isFetchError) {
-      console.warn('Database offline / fetch error when querying bookings:', err);
-      // Return empty array or fallback records instead of throwing raw TypeError
-      return [];
+    console.warn('Joined query notice, trying simplified query:', err);
+  }
+
+  // Fallback to simple query if join query fails
+  if (error || !data) {
+    try {
+      const simpleRes = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+      data = simpleRes.data;
+      error = simpleRes.error;
+    } catch (err) {
+      console.error('Simple query failed:', err);
+      throw new Error(`Failed to load bookings from database: ${err instanceof Error ? err.message : 'Database error'}`);
     }
-    throw new Error(`Failed to load bookings from database: ${err instanceof Error ? err.message : 'Connection error'}`);
   }
 
   if (error) {
@@ -276,12 +286,26 @@ export async function getAdminBookingById(id: string): Promise<AdminBooking | nu
     data = res.data;
     error = res.error;
   } catch (err) {
-    console.warn('Database offline / fetch error when querying booking detail:', err);
-    const all = await getAdminBookings();
-    return all.find((b) => b.id === id || b.reference === id) || null;
+    console.warn('Joined single query failed, falling back to list lookup:', err);
   }
 
   if (error || !data) {
+    try {
+      const simpleRes = await supabase
+        .from('bookings')
+        .select('*')
+        .or(`id.eq.${id},reference.eq.${id}`)
+        .maybeSingle();
+      if (simpleRes.data) {
+        data = simpleRes.data;
+        error = null;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (!data) {
     const all = await getAdminBookings();
     return all.find((b) => b.id === id || b.reference === id) || null;
   }

@@ -428,43 +428,33 @@ export async function createBooking(
   let accessToken = '';
   let rawStatus = isQuote ? 'quote_requested' : 'pending_payment';
 
-  try {
-    const res = await withTimeout(
-      supabase.rpc('create_booking', {
-        p_service_slug: serviceSlug,
-        p_items: p_items,
-        p_name: payload.customerName.trim(),
-        p_phone: payload.customerPhone.trim(),
-        p_whatsapp: payload.customerWhatsapp?.trim() || null,
-        p_email: payload.customerEmail.trim(),
-        p_address: payload.serviceAddress.trim(),
-        p_date: payload.scheduledDate,
-        p_time: payload.scheduledTime?.trim() || null,
-        p_notes: payload.notes?.trim() || null,
-        p_quote_details: payload.quoteDetails?.trim() || null,
-      }),
-      2500
-    );
+  const res = await supabase.rpc('create_booking', {
+    p_service_slug: serviceSlug,
+    p_items: p_items,
+    p_name: payload.customerName.trim(),
+    p_phone: payload.customerPhone.trim(),
+    p_whatsapp: payload.customerWhatsapp?.trim() || null,
+    p_email: payload.customerEmail.trim(),
+    p_address: payload.serviceAddress.trim(),
+    p_date: payload.scheduledDate,
+    p_time: payload.scheduledTime?.trim() || null,
+    p_notes: payload.notes?.trim() || null,
+    p_quote_details: payload.quoteDetails?.trim() || null,
+  });
 
-    if (res.error) {
-      console.warn('create_booking RPC error:', res.error);
-    } else {
-      const row = Array.isArray(res.data) ? res.data[0] : res.data;
-      if (row && row.reference) {
-        reference = row.reference;
-        accessToken = row.access_token;
-        rawStatus = row.booking_status || rawStatus;
-      }
-    }
-  } catch (err) {
-    console.warn('create_booking network failure or offline mode:', err);
+  if (res.error) {
+    console.error('create_booking RPC error:', res.error);
+    throw new Error(`Failed to create booking in database: ${res.error.message}`);
   }
 
-  // Fallback generation if database/network is offline or unreachable
-  if (!reference) {
-    reference = `CQ-${Math.floor(100000 + Math.random() * 900000)}`;
-    accessToken = `tok_${Math.random().toString(36).substring(2, 15)}`;
+  const row = Array.isArray(res.data) ? res.data[0] : res.data;
+  if (!row || !row.reference) {
+    throw new Error('Failed to create booking: Server did not return a valid reference.');
   }
+
+  reference = row.reference;
+  accessToken = row.access_token;
+  rawStatus = row.booking_status || rawStatus;
 
   let serverTotal: number | undefined;
   let serverDeposit: number | undefined;
@@ -628,13 +618,10 @@ export async function submitReceipt(
     (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
     (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
 
-  let finalPath = '';
-  let uploadSuccess = false;
-
-  // Stage A: Edge Function signed upload URL pipeline
   const edgeUrl = `${cleanBaseUrl}/functions/v1/receipt-upload-url`;
+  let uploadUrlRes: Response;
   try {
-    const uploadUrlRes = await fetch(edgeUrl, {
+    uploadUrlRes = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -648,75 +635,45 @@ export async function submitReceipt(
         size: file.size,
       }),
     });
-
-    if (uploadUrlRes.ok) {
-      const { path, token: signedToken } = await uploadUrlRes.json();
-      if (path && signedToken) {
-        const { error: storageErr } = await supabase.storage
-          .from('payment-receipts')
-          .uploadToSignedUrl(path, signedToken, file, { contentType: file.type });
-
-        if (!storageErr) {
-          finalPath = path;
-          uploadSuccess = true;
-        } else {
-          console.warn('Stage A uploadToSignedUrl error:', storageErr);
-        }
-      }
-    } else if (uploadUrlRes.status === 403) {
-      throw new Error('403 Invalid booking access: Verification failed for reference or access token.');
-    }
-  } catch (edgeErr) {
-    if (edgeErr instanceof Error && edgeErr.message.includes('403')) {
-      throw edgeErr;
-    }
-    console.warn('Stage A Edge Function issue:', edgeErr);
+  } catch (err) {
+    console.error('Receipt upload network error:', err);
+    throw new Error('Network failure: Unable to connect to receipt upload service.');
   }
 
-  // Stage B: Direct bucket storage upload
-  if (!uploadSuccess) {
-    const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
-    finalPath = `${reference}/${crypto.randomUUID()}.${ext}`;
-
-    try {
-      const { error: directUploadErr } = await supabase.storage
-        .from('payment-receipts')
-        .upload(finalPath, file, {
-          contentType: file.type,
-          upsert: true,
-        });
-
-      if (!directUploadErr) {
-        uploadSuccess = true;
-      } else {
-        console.warn('Stage B Direct upload notice:', directUploadErr);
-      }
-    } catch (bErr) {
-      console.warn('Stage B Exception:', bErr);
+  if (!uploadUrlRes.ok) {
+    const errBody = await uploadUrlRes.json().catch(() => ({}));
+    console.error('Receipt Edge Function HTTP error:', uploadUrlRes.status, errBody);
+    if (uploadUrlRes.status === 403) {
+      throw new Error('403 Invalid booking access: Verification failed for reference or token.');
     }
+    throw new Error(errBody.error || `Upload authorization failed (HTTP ${uploadUrlRes.status}).`);
   }
 
-  // Stage C: Base path fallback
-  if (!finalPath) {
-    const ext = file.type === 'application/pdf' ? 'pdf' : 'jpg';
-    finalPath = `receipts/${reference}_${Date.now()}.${ext}`;
+  const { path, token: signedToken } = await uploadUrlRes.json().catch(() => ({}));
+  if (!path || !signedToken) {
+    throw new Error('Server returned an invalid signed upload URL.');
   }
 
-  // Attach receipt via attach_receipt RPC call
-  try {
-    const { error: rpcError } = await supabase.rpc('attach_receipt', {
-      p_ref: reference,
-      p_token: token,
-      p_path: finalPath,
-      p_mime: file.type,
-      p_size: file.size,
-    });
+  const { error: storageErr } = await supabase.storage
+    .from('payment-receipts')
+    .uploadToSignedUrl(path, signedToken, file, { contentType: file.type });
 
-    if (rpcError) {
-      console.warn('attach_receipt RPC notice:', rpcError);
-    }
-  } catch (rpcErr) {
-    console.warn('attach_receipt exception:', rpcErr);
+  if (storageErr) {
+    console.error('Storage upload failure:', storageErr);
+    throw new Error(`Storage upload failure: ${storageErr.message}`);
+  }
+
+  const { error: rpcError } = await supabase.rpc('attach_receipt', {
+    p_ref: reference,
+    p_token: token,
+    p_path: path,
+    p_mime: file.type,
+    p_size: file.size,
+  });
+
+  if (rpcError) {
+    console.error('attach_receipt RPC failure:', rpcError);
+    throw new Error(`attach_receipt failure: ${rpcError.message}`);
   }
 
   // Return EXACT mandatory confirmation message
