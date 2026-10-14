@@ -3,14 +3,13 @@ import type { CartItem } from '../types';
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (item: Omit<CartItem, 'id' | 'quantity'> & { id?: string; quantity?: number }) => void;
+  addToCart: (item: Omit<CartItem, 'id' | 'quantity'> & { id?: string; quantity?: number }) => boolean;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
   totalCount: number;
   totalAmount: number;
   depositAmount: number;
-  hasQuoteItems: boolean;
   isCartOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -20,12 +19,12 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = 'cleanique_cart';
+const CART_STORAGE_KEY = 'cleanique_cart_session';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      const stored = sessionStorage.getItem(CART_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -37,7 +36,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
     } catch {
       // Ignore quota error
     }
@@ -52,10 +51,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addToCart = (
     itemData: Omit<CartItem, 'id' | 'quantity'> & { id?: string; quantity?: number }
-  ) => {
+  ): boolean => {
+    // Cart may contain ONLY fixed-price residential packages.
+    if (itemData.isQuote || itemData.price === null || itemData.price === undefined) {
+      showNotification('Quote services use the quote request form and cannot be added to cart.');
+      return false;
+    }
+
     setItems((prev) => {
       const existingIdx = prev.findIndex(
-        (i) => i.itemId === itemData.itemId && i.name === itemData.name
+        (i) => i.itemId === itemData.itemId || i.name === itemData.name
       );
 
       if (existingIdx >= 0) {
@@ -72,18 +77,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: itemData.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           itemId: itemData.itemId,
           name: itemData.name,
-          category: itemData.category,
+          category: itemData.category || 'Residential',
           price: itemData.price,
           formattedPrice: itemData.formattedPrice,
           quantity: itemData.quantity || 1,
-          isQuote: itemData.isQuote,
+          isQuote: false,
           features: itemData.features,
-          itemType: itemData.itemType,
+          itemType: 'package',
         };
         showNotification(`Added to Cart: ${itemData.name}`);
         return [...prev, newItem];
       }
     });
+    return true;
   };
 
   const removeFromCart = (id: string) => {
@@ -112,6 +118,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setItems([]);
+    try {
+      sessionStorage.removeItem(CART_STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
   };
 
   const openCart = () => setIsCartOpen(true);
@@ -129,8 +140,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const depositAmount = Math.round(totalAmount * 0.5);
 
-  const hasQuoteItems = items.some((item) => item.isQuote || item.price === null);
-
   return (
     <CartContext.Provider
       value={{
@@ -142,7 +151,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         totalCount,
         totalAmount,
         depositAmount,
-        hasQuoteItems,
         isCartOpen,
         openCart,
         closeCart,

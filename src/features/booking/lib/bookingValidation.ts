@@ -20,7 +20,9 @@ function isTodayOrLater(dateStr: string): boolean {
 }
 
 /**
- * Customer details validation schema for fixed-price package bookings
+ * Customer details validation schema for fixed-price package bookings.
+ * Required: customerName, customerPhone, customerEmail, serviceAddress, scheduledDate (today or later).
+ * Optional: customerWhatsapp.
  */
 export const bookingCustomerDetailsSchema = z.object({
   customerName: z
@@ -35,9 +37,8 @@ export const bookingCustomerDetailsSchema = z.object({
   customerEmail: z
     .string()
     .trim()
-    .email({ message: 'Please enter a valid email address.' })
-    .or(z.literal(''))
-    .optional(),
+    .min(1, { message: 'Email address is required.' })
+    .email({ message: 'Please enter a valid email address.' }),
   customerWhatsapp: z
     .string()
     .trim()
