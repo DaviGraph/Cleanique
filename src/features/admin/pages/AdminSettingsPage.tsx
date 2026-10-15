@@ -431,15 +431,15 @@ interface PackageFormProps {
 }
 
 const PackageForm: React.FC<PackageFormProps> = ({ value, onChange }) => {
-  const [featuresText, setFeaturesText] = useState<string>(
+  const [featuresText, setFeaturesText] = useState<string>(() =>
     Array.isArray(value.features) ? value.features.join('\n') : (value.features || '')
   );
+  const [prevName, setPrevName] = useState(value.name);
 
-  useEffect(() => {
-    if (Array.isArray(value.features)) {
-      setFeaturesText(value.features.join('\n'));
-    }
-  }, [value.name]);
+  if (value.name !== prevName) {
+    setPrevName(value.name);
+    setFeaturesText(Array.isArray(value.features) ? value.features.join('\n') : (value.features || ''));
+  }
 
   return (
     <div className="cq-pkg-form-grid">

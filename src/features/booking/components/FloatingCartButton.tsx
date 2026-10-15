@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../hooks/useCart';
 import { ShoppingCartIcon, CheckIcon } from './Icons';
 
 export const FloatingCartButton: React.FC = () => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getServices, getPackages, createBooking } from '../lib/bookingApi';
 import type { Service, Package, CreateBookingPayload, CreateBookingResponse } from '../types';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../hooks/useCart';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { BookingProgress } from '../components/BookingProgress';
@@ -151,7 +151,7 @@ export const BookingPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams]);
+  }, [searchParams, addToCart]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>

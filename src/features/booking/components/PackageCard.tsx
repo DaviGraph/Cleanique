@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Package } from '../types';
 import { CheckIcon, SparklesIcon, ShoppingCartIcon } from './Icons';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../hooks/useCart';
 
 interface PackageCardProps {
   packageData: Package;
