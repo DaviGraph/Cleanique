@@ -424,23 +424,29 @@ export async function createBooking(
     p_items.push({ package_id: pkgUuid, quantity: 1 });
   }
 
-  const res = await supabase.rpc('create_booking', {
-    p_service_slug: serviceSlug,
-    p_items: p_items,
-    p_name: payload.customerName.trim(),
-    p_phone: payload.customerPhone.trim(),
-    p_whatsapp: payload.customerWhatsapp?.trim() || null,
-    p_email: payload.customerEmail.trim(),
-    p_address: payload.serviceAddress.trim(),
-    p_date: payload.scheduledDate,
-    p_time: payload.scheduledTime?.trim() || null,
-    p_notes: payload.notes?.trim() || null,
-    p_quote_details: payload.quoteDetails?.trim() || null,
-  });
+  let res;
+  try {
+    res = await supabase.rpc('create_booking', {
+      p_service_slug: serviceSlug,
+      p_items: p_items,
+      p_name: payload.customerName.trim(),
+      p_phone: payload.customerPhone.trim(),
+      p_whatsapp: payload.customerWhatsapp?.trim() || null,
+      p_email: payload.customerEmail.trim(),
+      p_address: payload.serviceAddress.trim(),
+      p_date: payload.scheduledDate,
+      p_time: payload.scheduledTime?.trim() || null,
+      p_notes: payload.notes?.trim() || null,
+      p_quote_details: payload.quoteDetails?.trim() || null,
+    });
+  } catch (err) {
+    console.error('create_booking network error:', err);
+    throw new Error('Unable to connect to the booking service. Please check your internet connection and try again.', { cause: err });
+  }
 
   if (res.error) {
     console.error('create_booking RPC error:', res.error);
-    throw new Error(`Failed to create booking in database: ${res.error.message}`);
+    throw new Error(`Failed to create booking: ${res.error.message}`);
   }
 
   const row = Array.isArray(res.data) ? res.data[0] : res.data;

@@ -127,14 +127,20 @@ export async function getAdminBookings(filters?: {
   searchQuery?: string;
 }): Promise<AdminBooking[]> {
   // 1. Fetch base bookings table rows directly
-  const res = await supabase
-    .from('bookings')
-    .select('*')
-    .order('created_at', { ascending: false });
+  let res;
+  try {
+    res = await supabase
+      .from('bookings')
+      .select('*')
+      .order('created_at', { ascending: false });
+  } catch (err) {
+    console.error('getAdminBookings network error:', err);
+    throw new Error('Unable to connect to the database server. Please verify your internet connection or backend configuration.', { cause: err });
+  }
 
   if (res.error) {
     console.error('Supabase error loading bookings:', res.error);
-    throw new Error(`Failed to load bookings from database: ${res.error.message}`);
+    throw new Error(`Failed to load bookings: ${res.error.message}`);
   }
   const rawBookings = (res.data || []) as Record<string, unknown>[];
 
