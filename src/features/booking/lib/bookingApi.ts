@@ -424,10 +424,6 @@ export async function createBooking(
     p_items.push({ package_id: pkgUuid, quantity: 1 });
   }
 
-  let reference = '';
-  let accessToken = '';
-  let rawStatus = isQuote ? 'quote_requested' : 'pending_payment';
-
   const res = await supabase.rpc('create_booking', {
     p_service_slug: serviceSlug,
     p_items: p_items,
@@ -452,9 +448,9 @@ export async function createBooking(
     throw new Error('Failed to create booking: Server did not return a valid reference.');
   }
 
-  reference = row.reference;
-  accessToken = row.access_token;
-  rawStatus = row.booking_status || rawStatus;
+  const reference: string = row.reference;
+  const accessToken: string = row.access_token;
+  const rawStatus: string = row.booking_status || (isQuote ? 'quote_requested' : 'pending_payment');
 
   let serverTotal: number | undefined;
   let serverDeposit: number | undefined;
@@ -519,8 +515,8 @@ export async function getBookingStatus(
   }
 
   const rawStatus = (rpcData.booking_status as string) || 'pending_payment';
-  let normalizedStatus: BookingStatus = 'pending_payment';
   const lower = rawStatus.toLowerCase().replace(/\s+/g, '_');
+  let normalizedStatus: BookingStatus;
   if (lower.includes('confirm')) normalizedStatus = 'confirmed';
   else if (lower.includes('verif')) normalizedStatus = 'pending_verification';
   else if (lower.includes('complet')) normalizedStatus = 'completed';
@@ -637,7 +633,7 @@ export async function submitReceipt(
     });
   } catch (err) {
     console.error('Receipt upload network error:', err);
-    throw new Error('Network failure: Unable to connect to receipt upload service.');
+    throw new Error('Network failure: Unable to connect to receipt upload service.', { cause: err });
   }
 
   if (!uploadUrlRes.ok) {

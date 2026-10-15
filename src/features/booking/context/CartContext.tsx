@@ -1,23 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { useState } from 'react';
 import type { CartItem } from '../types';
-
-interface CartContextType {
-  items: CartItem[];
-  addToCart: (item: Omit<CartItem, 'id' | 'quantity'> & { id?: string; quantity?: number }) => boolean;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, delta: number) => void;
-  clearCart: () => void;
-  totalCount: number;
-  totalAmount: number;
-  depositAmount: number;
-  isCartOpen: boolean;
-  openCart: () => void;
-  closeCart: () => void;
-  toggleCart: () => void;
-  notification: string | null;
-}
-
-const CartContext = createContext<CartContextType | undefined>(undefined);
+import type { CartContextType } from './CartContextType';
+import { CartContext } from './CartContextObject';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -35,7 +19,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addToCart = (
     itemData: Omit<CartItem, 'id' | 'quantity'> & { id?: string; quantity?: number }
   ): boolean => {
-    // Cart may contain ONLY fixed-price residential packages.
     if (itemData.isQuote || itemData.price === null || itemData.price === undefined) {
       showNotification('Quote services use the quote request form and cannot be added to cart.');
       return false;
@@ -118,33 +101,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const depositAmount = Math.round(totalAmount * 0.5);
 
-  return (
-    <CartContext.Provider
-      value={{
-        items,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        totalCount,
-        totalAmount,
-        depositAmount,
-        isCartOpen,
-        openCart,
-        closeCart,
-        toggleCart,
-        notification,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
-  );
-};
+  const value: CartContextType = {
+    items,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    totalCount,
+    totalAmount,
+    depositAmount,
+    isCartOpen,
+    openCart,
+    closeCart,
+    toggleCart,
+    notification,
+  };
 
-export const useCart = (): CartContextType => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

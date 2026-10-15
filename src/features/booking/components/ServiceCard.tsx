@@ -11,7 +11,7 @@ import {
   CheckIcon,
   ShoppingCartIcon,
 } from './Icons';
-import { useCart } from '../context/CartContext';
+import { useCart } from '../hooks/useCart';
 
 interface ServiceCardProps {
   service: Service;
