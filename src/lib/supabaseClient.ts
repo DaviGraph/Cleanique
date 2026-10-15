@@ -12,11 +12,11 @@ const supabaseAnonKey =
   'placeholder-anon-key';
 
 if (!import.meta.env.VITE_SUPABASE_URL && import.meta.env.PROD) {
-  throw new Error('Missing environment variable: VITE_SUPABASE_URL');
+  console.error('[Supabase Error] Missing environment variable: VITE_SUPABASE_URL. Please set VITE_SUPABASE_URL in Vercel environment variables.');
 }
 
 if (!import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY && import.meta.env.PROD) {
-  throw new Error('Missing environment variable: VITE_SUPABASE_ANON_KEY');
+  console.error('[Supabase Error] Missing environment variable: VITE_SUPABASE_ANON_KEY. Please set VITE_SUPABASE_ANON_KEY in Vercel environment variables.');
 }
 
 if (import.meta.env.DEV) {
