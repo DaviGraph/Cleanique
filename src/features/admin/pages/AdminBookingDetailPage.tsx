@@ -244,8 +244,42 @@ export const AdminBookingDetailPage: React.FC = () => {
     );
   }
 
-  const phoneDigits = booking.customer_phone ? booking.customer_phone.replace(/[^0-9]/g, '') : '';
-  const whatsappDigits = booking.customer_whatsapp ? booking.customer_whatsapp.replace(/[^0-9]/g, '') : phoneDigits;
+  const rawWaNumber = booking.customer_whatsapp || booking.customer_phone || '';
+  const normalizeWhatsAppNumber = (numStr: string): string => {
+    if (!numStr) return '';
+    let cleaned = numStr.replace(/[\s\-]/g, '');
+    if (cleaned.startsWith('+')) {
+      cleaned = cleaned.slice(1);
+    }
+    if (cleaned.startsWith('0')) {
+      cleaned = '234' + cleaned.slice(1);
+    }
+    return cleaned;
+  };
+
+  const normalizedWaNumber = normalizeWhatsAppNumber(rawWaNumber);
+
+  const getWhatsAppMessage = (b: AdminBooking): string => {
+    const name = b.customer_name || 'Client';
+    const ref = b.reference;
+
+    if (b.payment_status === 'fully_paid' || b.payment_status === 'partially_paid') {
+      const amountPaid = (b.amount_paid || 0).toLocaleString();
+      return `Hello ${name}, Cleanique has verified your payment of ₦${amountPaid} for booking ${ref}. We will confirm your appointment shortly.`;
+    }
+
+    if (b.payment_status === 'rejected') {
+      return `Hello ${name}, we could not verify the receipt for booking ${ref}. Please send a clear screenshot of your transfer.`;
+    }
+
+    if (b.booking_status === 'confirmed') {
+      return `Hello ${name}, your Cleanique booking ${ref} is confirmed for ${b.scheduled_date}.`;
+    }
+
+    return `Hello ${name}, regarding your Cleanique booking ${ref}.`;
+  };
+
+  const waMessage = getWhatsAppMessage(booking);
 
   return (
     <div className="cq-container cq-admin-container">
@@ -305,20 +339,33 @@ export const AdminBookingDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Tappable WhatsApp Link */}
+              {/* Tappable WhatsApp Link & Button */}
               <div className="cq-admin-field">
                 <span className="cq-admin-field-label">WhatsApp</span>
-                {whatsappDigits ? (
-                  <a
-                    href={`https://wa.me/${whatsappDigits}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="cq-admin-phone-link cq-whatsapp-link"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <MessageCircleIcon size={14} />
-                    <span>{booking.customer_whatsapp || booking.customer_phone}</span>
-                  </a>
+                {normalizedWaNumber ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <a
+                      href={`https://wa.me/${normalizedWaNumber}?text=${encodeURIComponent(waMessage)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cq-admin-phone-link cq-whatsapp-link"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <MessageCircleIcon size={14} />
+                      <span>{booking.customer_whatsapp || booking.customer_phone}</span>
+                    </a>
+                    <a
+                      href={`https://wa.me/${normalizedWaNumber}?text=${encodeURIComponent(waMessage)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cq-btn cq-btn-secondary cq-btn-sm"
+                      id="msg-on-whatsapp-btn"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '0.8rem' }}
+                    >
+                      <MessageCircleIcon size={13} />
+                      <span>Message on WhatsApp</span>
+                    </a>
+                  </div>
                 ) : (
                   <span className="cq-admin-field-val">Not provided</span>
                 )}
@@ -720,9 +767,9 @@ export const AdminBookingDetailPage: React.FC = () => {
                     <PhoneIcon size={14} /> Call {booking.customer_phone}
                   </a>
                 )}
-                {whatsappDigits && (
+                {normalizedWaNumber && (
                   <a
-                    href={`https://wa.me/${whatsappDigits}`}
+                    href={`https://wa.me/${normalizedWaNumber}?text=${encodeURIComponent(waMessage)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="cq-contact-link cq-contact-whatsapp"
