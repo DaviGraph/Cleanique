@@ -33,11 +33,13 @@ export const AdminRouteGuard: React.FC<AdminRouteGuardProps> = ({ children }) =>
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (isMounted) {
-        if (session?.user) {
-          setIsAuthenticated(true);
+        if (!session?.user) {
+          setIsAuthenticated(false);
+          setChecking(false);
         } else {
           const current = await getAdminSession();
           setIsAuthenticated(!!current);
+          setChecking(false);
         }
       }
     });
