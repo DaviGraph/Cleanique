@@ -289,7 +289,7 @@ export const AdminBookingDetailPage: React.FC = () => {
             <div className="cq-admin-fields-grid">
               <div className="cq-admin-field">
                 <span className="cq-admin-field-label">Customer Name</span>
-                <span className="cq-admin-field-val">{booking.customer_name}</span>
+                <span className="cq-admin-field-val">{booking.customer_name || 'Not provided'}</span>
               </div>
 
               {/* Tappable Phone Link */}
@@ -301,7 +301,7 @@ export const AdminBookingDetailPage: React.FC = () => {
                     <span>{booking.customer_phone}</span>
                   </a>
                 ) : (
-                  <span className="cq-admin-field-val">—</span>
+                  <span className="cq-admin-field-val">Not provided</span>
                 )}
               </div>
 
@@ -320,23 +320,25 @@ export const AdminBookingDetailPage: React.FC = () => {
                     <span>{booking.customer_whatsapp || booking.customer_phone}</span>
                   </a>
                 ) : (
-                  <span className="cq-admin-field-val">—</span>
+                  <span className="cq-admin-field-val">Not provided</span>
                 )}
               </div>
 
-              {booking.customer_email && (
-                <div className="cq-admin-field">
-                  <span className="cq-admin-field-label">Email Address</span>
+              <div className="cq-admin-field">
+                <span className="cq-admin-field-label">Email Address</span>
+                {booking.customer_email ? (
                   <a href={`mailto:${booking.customer_email}`} className="cq-admin-phone-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <MailIcon size={14} />
                     <span>{booking.customer_email}</span>
                   </a>
-                </div>
-              )}
+                ) : (
+                  <span className="cq-admin-field-val">Not provided</span>
+                )}
+              </div>
 
               <div className="cq-admin-field">
                 <span className="cq-admin-field-label">Service</span>
-                <span className="cq-admin-field-val">{booking.service_name}</span>
+                <span className="cq-admin-field-val">{booking.service_name || 'Not provided'}</span>
               </div>
 
               {booking.package_name && (
@@ -349,27 +351,33 @@ export const AdminBookingDetailPage: React.FC = () => {
               <div className="cq-admin-field">
                 <span className="cq-admin-field-label">Preferred Date &amp; Time</span>
                 <span className="cq-admin-field-val">
-                  {new Date(booking.scheduled_date).toLocaleDateString('en-NG', {
-                    weekday: 'short',
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                  {booking.scheduled_time && ` (${booking.scheduled_time})`}
+                  {booking.scheduled_date ? (
+                    <>
+                      {new Date(booking.scheduled_date).toLocaleDateString('en-NG', {
+                        weekday: 'short',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                      {booking.scheduled_time && ` (${booking.scheduled_time})`}
+                    </>
+                  ) : (
+                    'Not provided'
+                  )}
                 </span>
               </div>
 
               <div className="cq-admin-field" style={{ gridColumn: 'span 2' }}>
                 <span className="cq-admin-field-label">Service Address</span>
-                <span className="cq-admin-field-val">{booking.service_address || '—'}</span>
+                <span className="cq-admin-field-val">{booking.service_address || 'Not provided'}</span>
               </div>
 
-              {booking.notes && (
-                <div className="cq-admin-field" style={{ gridColumn: 'span 2' }}>
-                  <span className="cq-admin-field-label">Notes</span>
-                  <p className="cq-admin-field-text">{booking.notes}</p>
-                </div>
-              )}
+              <div className="cq-admin-field" style={{ gridColumn: 'span 2' }}>
+                <span className="cq-admin-field-label">Notes</span>
+                <span className="cq-admin-field-val">
+                  {booking.notes || 'Not provided'}
+                </span>
+              </div>
 
               {booking.quote_details && (
                 <div className="cq-admin-field" style={{ gridColumn: 'span 2' }}>

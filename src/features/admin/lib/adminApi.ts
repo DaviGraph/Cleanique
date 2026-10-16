@@ -175,191 +175,159 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 
 // ─── Booking list & detail (Explicit Columns Query) ──────────────────────────
 
+const BOOKINGS_SELECT_QUERY = `
+  id,
+  reference,
+  service_id,
+  package_id,
+  customer_name,
+  phone,
+  whatsapp,
+  email,
+  address,
+  preferred_date,
+  preferred_time,
+  notes,
+  total_amount,
+  deposit_required,
+  amount_paid,
+  booking_status,
+  payment_status,
+  owner_note,
+  created_at,
+  updated_at,
+  services(id, name, slug),
+  packages(id, name, price),
+  booking_items(id, package_name, unit_price, quantity),
+  quotes(id, request_details, quoted_amount, owner_message, status),
+  payments(id, receipt_path, receipt_mime, receipt_size, status, verified_amount, verified_at, rejection_reason, submitted_at)
+`.replace(/\s+/g, ' ').trim();
+
+function mapBookingRowToAdminBooking(row: Record<string, unknown>): AdminBooking {
+  const rowId = String(row.id || '');
+  const ref = String(row.reference || '');
+
+  const customerName = row.customer_name != null ? String(row.customer_name) : '';
+  const phone = row.phone != null ? String(row.phone) : '';
+  const whatsapp = row.whatsapp != null ? String(row.whatsapp) : '';
+  const email = row.email != null ? String(row.email) : '';
+  const address = row.address != null ? String(row.address) : '';
+  const preferredDate = row.preferred_date != null ? String(row.preferred_date) : '';
+  const preferredTime = row.preferred_time != null ? String(row.preferred_time) : '';
+  const notes = row.notes != null ? String(row.notes) : '';
+
+  // Services
+  const serviceObj = row.services as { name?: string; slug?: string; id?: string } | null;
+  const serviceName = serviceObj?.name || '';
+  const serviceId = serviceObj?.slug || serviceObj?.id || String(row.service_id || '');
+
+  // Packages
+  const pkgObj = row.packages as { name?: string } | null;
+  const packageName = pkgObj?.name || undefined;
+
+  // Booking items
+  const rawItems = Array.isArray(row.booking_items) ? row.booking_items : [];
+  const itemsList: AdminBookingItem[] = rawItems.map((item: Record<string, unknown>) => ({
+    id: String(item.id || ''),
+    name: String(item.package_name || ''),
+    quantity: Number(item.quantity || 1),
+    price: item.unit_price ? Number(item.unit_price) : null,
+    formattedPrice: item.unit_price ? `₦${Number(item.unit_price).toLocaleString()}` : 'Included',
+  }));
+
+  // Quotes
+  const rawQuotes = Array.isArray(row.quotes) ? row.quotes[0] : (row.quotes as Record<string, unknown> | null);
+  const quoteDetails = rawQuotes?.request_details ? String(rawQuotes.request_details) : undefined;
+  const quoteMessage = rawQuotes?.owner_message ? String(rawQuotes.owner_message) : undefined;
+  const quoteAmount = rawQuotes?.quoted_amount ? Number(rawQuotes.quoted_amount) : undefined;
+
+  // Payments
+  const rawPayments = Array.isArray(row.payments) ? row.payments : [];
+  const paymentsList: PaymentRow[] = rawPayments.map((p: Record<string, unknown>) => {
+    const mimeStr = String(p.receipt_mime || '');
+    const sizeVal = Number(p.receipt_size || 0);
+    return {
+      id: String(p.id || ''),
+      submitted_at: String(p.submitted_at || new Date().toISOString()),
+      file_type: mimeStr.includes('pdf') ? 'pdf' : 'image',
+      size: sizeVal,
+      size_formatted: sizeVal ? `${(sizeVal / 1024).toFixed(1)} KB` : 'Unknown size',
+      status: String(p.status || 'pending'),
+      verified_amount: p.verified_amount ? Number(p.verified_amount) : 0,
+      rejection_reason: p.rejection_reason ? String(p.rejection_reason) : null,
+      receipt_path: String(p.receipt_path || ''),
+    };
+  });
+
+  let bStatus: AdminBooking['booking_status'] = 'pending_payment';
+  const rawB = ((row.booking_status as string) || '').toLowerCase().replace(/\s+/g, '_');
+  if (rawB.includes('confirm')) bStatus = 'confirmed';
+  else if (rawB.includes('verif')) bStatus = 'pending_verification';
+  else if (rawB.includes('complet')) bStatus = 'completed';
+  else if (rawB.includes('cancel')) bStatus = 'cancelled';
+  else if (rawB.includes('quote')) bStatus = 'quote_requested';
+
+  let pStatus: AdminBooking['payment_status'] = 'unpaid';
+  const rawP = ((row.payment_status as string) || '').toLowerCase().replace(/\s+/g, '_');
+  if (rawP.includes('fully') || rawP.includes('paid')) pStatus = 'fully_paid';
+  else if (rawP.includes('part')) pStatus = 'partially_paid';
+  else if (rawP.includes('reject')) pStatus = 'rejected';
+  else if (rawP.includes('verif')) pStatus = 'pending_verification';
+
+  return {
+    id: rowId,
+    reference: ref,
+    customer_name: customerName,
+    customer_phone: phone,
+    customer_email: email || undefined,
+    customer_whatsapp: whatsapp || undefined,
+    service_id: serviceId,
+    service_name: serviceName,
+    package_name: packageName,
+    service_address: address,
+    scheduled_date: preferredDate,
+    scheduled_time: preferredTime || undefined,
+    notes: notes || undefined,
+    quote_details: quoteDetails,
+    quote_message: quoteMessage,
+    is_quote: bStatus === 'quote_requested' || serviceName.toLowerCase().includes('quote'),
+    total_amount: row.total_amount ? Number(row.total_amount) : quoteAmount,
+    deposit_amount: row.deposit_required ? Number(row.deposit_required) : undefined,
+    amount_paid: row.amount_paid ? Number(row.amount_paid) : 0,
+    booking_status: bStatus,
+    payment_status: pStatus,
+    payments: paymentsList,
+    receipts: paymentsList.map((p) => ({
+      id: p.id,
+      filename: p.receipt_path ? p.receipt_path.split('/').pop() || 'receipt' : 'receipt',
+      file_type: p.file_type,
+      file_size_formatted: p.size_formatted,
+      storage_path: p.receipt_path,
+      submitted_at: p.submitted_at,
+    })),
+    items: itemsList,
+    timeline: [],
+    created_at: String(row.created_at || new Date().toISOString()),
+  };
+}
+
 export async function getAdminBookings(filters?: {
   bookingStatus?: string;
   paymentStatus?: string;
   searchQuery?: string;
 }): Promise<AdminBooking[]> {
-  // Explicitly select booking columns — NEVER select access_token_hash
-  const EXPLICIT_BOOKING_COLUMNS = `
-    id,
-    reference,
-    p_service_slug,
-    p_name,
-    p_phone,
-    p_whatsapp,
-    p_email,
-    p_address,
-    p_date,
-    p_time,
-    p_notes,
-    p_quote_details,
-    booking_status,
-    payment_status,
-    total_amount,
-    deposit_required,
-    amount_paid,
-    created_at,
-    updated_at
-  `.replace(/\s+/g, ' ').trim();
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(BOOKINGS_SELECT_QUERY)
+    .order('created_at', { ascending: false });
 
-  let res;
-  try {
-    res = await supabase
-      .from('bookings')
-      .select(EXPLICIT_BOOKING_COLUMNS)
-      .order('created_at', { ascending: false });
-  } catch (err) {
-    console.error('getAdminBookings network error:', err);
-    throw new Error('Unable to connect to the database server. Please verify your internet connection.', { cause: err });
+  if (error) {
+    console.error('Supabase error loading bookings:', error);
+    throw new Error(error.message);
   }
 
-  if (res.error) {
-    // If explicit p_ column names failed, fall back to general safe explicit column names without access_token_hash
-    console.warn('Primary column select notice:', res.error.message);
-    res = await supabase
-      .from('bookings')
-      .select('id, reference, booking_status, payment_status, total_amount, deposit_required, amount_paid, created_at, updated_at')
-      .order('created_at', { ascending: false });
-
-    if (res.error) {
-      console.error('Supabase error loading bookings:', res.error);
-      throw new Error(`Failed to load bookings: ${res.error.message}`);
-    }
-  }
-
-  const rawBookings = (res.data || []) as Record<string, unknown>[];
-
-  // Load related payments, booking_items, quotes, services, and packages in parallel
-  const paymentsMap: Record<string, Record<string, unknown>[]> = {};
-  const itemsMap: Record<string, Record<string, unknown>[]> = {};
-  const quotesMap: Record<string, Record<string, unknown>> = {};
-
-  try {
-    const [paymentsRes, itemsRes, quotesRes] = await Promise.all([
-      supabase.from('payments').select('id, booking_id, receipt_path, receipt_mime, receipt_size, status, verified_amount, verified_at, rejection_reason, submitted_at'),
-      supabase.from('booking_items').select('*'),
-      supabase.from('quotes').select('id, booking_id, request_details, quoted_amount, owner_message, status'),
-    ]);
-
-    if (paymentsRes.data) {
-      paymentsRes.data.forEach((p: Record<string, unknown>) => {
-        const bId = (p.booking_id || p.booking) as string;
-        if (bId) {
-          if (!paymentsMap[bId]) paymentsMap[bId] = [];
-          paymentsMap[bId].push(p);
-        }
-      });
-    }
-
-    if (itemsRes.data) {
-      itemsRes.data.forEach((it: Record<string, unknown>) => {
-        const bId = (it.booking_id || it.booking) as string;
-        if (bId) {
-          if (!itemsMap[bId]) itemsMap[bId] = [];
-          itemsMap[bId].push(it);
-        }
-      });
-    }
-
-    if (quotesRes.data) {
-      quotesRes.data.forEach((q: Record<string, unknown>) => {
-        const bId = (q.booking_id || q.booking) as string;
-        if (bId) {
-          quotesMap[bId] = q;
-        }
-      });
-    }
-  } catch (relErr) {
-    console.warn('Notice loading related tables:', relErr);
-  }
-
-  const list: AdminBooking[] = rawBookings.map((row) => {
-    const rowId = String(row.id || '');
-    const serviceSlug = (row.p_service_slug || row.service_slug || 'residential') as string;
-    const isQuoteService = serviceSlug !== 'residential';
-
-    let bStatus: AdminBooking['booking_status'] = 'pending_payment';
-    const rawB = ((row.booking_status as string) || '').toLowerCase().replace(/\s+/g, '_');
-    if (rawB.includes('confirm')) bStatus = 'confirmed';
-    else if (rawB.includes('verif')) bStatus = 'pending_verification';
-    else if (rawB.includes('complet')) bStatus = 'completed';
-    else if (rawB.includes('cancel')) bStatus = 'cancelled';
-    else if (rawB.includes('quote')) bStatus = 'quote_requested';
-
-    let pStatus: AdminBooking['payment_status'] = 'unpaid';
-    const rawP = ((row.payment_status as string) || '').toLowerCase().replace(/\s+/g, '_');
-    if (rawP.includes('fully') || rawP.includes('paid')) pStatus = 'fully_paid';
-    else if (rawP.includes('part')) pStatus = 'partially_paid';
-    else if (rawP.includes('reject')) pStatus = 'rejected';
-    else if (rawP.includes('verif')) pStatus = 'pending_verification';
-
-    const bPayments = paymentsMap[rowId] || [];
-    const paymentsList: PaymentRow[] = bPayments.map((p) => {
-      const mimeStr = (p.receipt_mime || p.mime || '') as string;
-      const sizeVal = Number(p.receipt_size || p.size || 0);
-      return {
-        id: String(p.id || ''),
-        submitted_at: String(p.submitted_at || p.created_at || new Date().toISOString()),
-        file_type: mimeStr.includes('pdf') ? 'pdf' : 'image',
-        size: sizeVal,
-        size_formatted: sizeVal ? `${(sizeVal / 1024).toFixed(1)} KB` : 'Unknown size',
-        status: String(p.status || 'pending'),
-        verified_amount: p.verified_amount ? Number(p.verified_amount) : 0,
-        rejection_reason: (p.rejection_reason || p.reason || null) as string | null,
-        receipt_path: String(p.receipt_path || p.path || ''),
-      };
-    });
-
-    const bItems = itemsMap[rowId] || [];
-    const itemsList: AdminBookingItem[] = bItems.map((item) => ({
-      id: String(item.id || item.package_id || ''),
-      name: String(item.package_name || item.name || 'Cleaning Item'),
-      quantity: Number(item.quantity || 1),
-      price: item.unit_price ? Number(item.unit_price) : null,
-      formattedPrice: item.unit_price ? `₦${Number(item.unit_price).toLocaleString()}` : 'Included',
-    }));
-
-    const bQuote = quotesMap[rowId];
-    const quoteMessage = bQuote?.owner_message || bQuote?.message || row.quote_message;
-    const quoteAmount = bQuote?.quoted_amount || bQuote?.amount || row.quote_amount;
-
-    return {
-      id: rowId,
-      reference: String(row.reference || rowId),
-      customer_name: String(row.p_name || row.customer_name || row.name || 'Client'),
-      customer_phone: String(row.p_phone || row.phone || ''),
-      customer_email: (row.p_email || row.email) ? String(row.p_email || row.email) : undefined,
-      customer_whatsapp: (row.p_whatsapp || row.whatsapp) ? String(row.p_whatsapp || row.whatsapp) : undefined,
-      service_id: serviceSlug,
-      service_name: isQuoteService ? 'Custom Quote Service' : 'Standard Residential Cleaning',
-      package_name: row.package_name ? String(row.package_name) : undefined,
-      service_address: String(row.p_address || row.address || row.service_address || ''),
-      scheduled_date: String(row.p_date || row.preferred_date || row.scheduled_date || new Date().toISOString().split('T')[0]),
-      scheduled_time: (row.p_time || row.preferred_time || row.scheduled_time) ? String(row.p_time || row.preferred_time || row.scheduled_time) : undefined,
-      notes: row.p_notes ? String(row.p_notes) : (row.notes ? String(row.notes) : undefined),
-      quote_details: row.p_quote_details ? String(row.p_quote_details) : (row.quote_details ? String(row.quote_details) : (bQuote?.request_details ? String(bQuote.request_details) : undefined)),
-      quote_message: quoteMessage ? String(quoteMessage) : undefined,
-      is_quote: isQuoteService || bStatus === 'quote_requested',
-      total_amount: row.total_amount ? Number(row.total_amount) : (quoteAmount ? Number(quoteAmount) : undefined),
-      deposit_amount: row.deposit_required ? Number(row.deposit_required) : undefined,
-      amount_paid: row.amount_paid ? Number(row.amount_paid) : 0,
-      booking_status: bStatus,
-      payment_status: pStatus,
-      payments: paymentsList,
-      receipts: paymentsList.map((p) => ({
-        id: p.id,
-        filename: p.receipt_path ? p.receipt_path.split('/').pop() || 'receipt' : 'receipt',
-        file_type: p.file_type,
-        file_size_formatted: p.size_formatted,
-        storage_path: p.receipt_path,
-        submitted_at: p.submitted_at,
-      })),
-      items: itemsList,
-      timeline: [],
-      created_at: String(row.created_at || new Date().toISOString()),
-    };
-  });
+  const rawBookings = (data || []) as unknown as Record<string, unknown>[];
+  const list = rawBookings.map(mapBookingRowToAdminBooking);
 
   // Prioritize needs-attention items first: Pending Verification, then Quote Requested
   const priorityOrder = (b: AdminBooking) => {
@@ -394,9 +362,22 @@ export async function getAdminBookings(filters?: {
 }
 
 export async function getAdminBookingById(id: string): Promise<AdminBooking | null> {
-  const all = await getAdminBookings();
-  const found = all.find((b) => b.id === id || b.reference === id);
-  return found || null;
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(BOOKINGS_SELECT_QUERY)
+    .or(`id.eq.${id},reference.eq.${id}`)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    console.error('Supabase error loading booking detail:', error);
+    throw new Error(error.message);
+  }
+
+  if (!data) return null;
+  return mapBookingRowToAdminBooking(data as unknown as Record<string, unknown>);
 }
 
 // ─── Signed receipt URL generation (strictly on click, valid 60s) ────────────
