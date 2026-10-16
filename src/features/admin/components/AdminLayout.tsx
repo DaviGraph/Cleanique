@@ -14,7 +14,7 @@ export const AdminLayout: React.FC = () => {
     async function loadUser() {
       const session = await getAdminSession();
       if (isMounted) {
-        setUserEmail(session?.email || 'admin@admin.com');
+        setUserEmail(session?.email || null);
       }
     }
 
@@ -22,8 +22,8 @@ export const AdminLayout: React.FC = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (isMounted) {
-        if (session?.user?.email) {
-          setUserEmail(session.user.email);
+        if (!session?.user) {
+          setUserEmail(null);
         } else {
           const current = await getAdminSession();
           setUserEmail(current?.email || null);

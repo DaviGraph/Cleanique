@@ -6,6 +6,7 @@ import { SparklesIcon } from '../../booking/components/Icons';
 export const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -15,19 +16,22 @@ export const AdminLoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+
     setError(null);
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please provide both email and password.');
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      setError('Incorrect email or password.');
       return;
     }
 
     try {
       setIsLoading(true);
-      await adminLogin(email, password);
+      await adminLogin(cleanEmail, password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please check credentials.');
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -63,9 +67,10 @@ export const AdminLoginPage: React.FC = () => {
               id="admin-email"
               type="email"
               required
+              disabled={isLoading}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@admin.com"
+              placeholder="Enter your email"
               className="cq-input"
               autoComplete="username"
             />
@@ -75,16 +80,40 @@ export const AdminLoginPage: React.FC = () => {
             <label htmlFor="admin-password" className="cq-form-label">
               Password
             </label>
-            <input
-              id="admin-password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="admin"
-              className="cq-input"
-              autoComplete="current-password"
-            />
+            <div className="cq-password-input-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                id="admin-password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                disabled={isLoading}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="cq-input"
+                style={{ width: '100%', paddingRight: '4rem' }}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="cq-btn-toggle-password"
+                disabled={isLoading}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: '#102A29',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: '0.25rem 0.5rem',
+                }}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
           <button
@@ -105,7 +134,7 @@ export const AdminLoginPage: React.FC = () => {
         </form>
 
         <div className="cq-admin-login-notice">
-          <span>Administrator Access:</span> Authorized Cleanique management portal. Default credentials: <code>admin@admin.com</code> / <code>admin</code>
+          <span>Administrator Access:</span> Authorized Cleanique management portal.
         </div>
       </div>
     </div>

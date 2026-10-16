@@ -23,37 +23,107 @@ import { DEFAULT_PACKAGES, DEFAULT_BANK_DETAILS } from '../../booking/lib/bookin
 
 // ─── Authentication ────────────────────────────────────────────────────────────
 
+function isNetworkError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = typeof err === 'string' ? err : (err as { message?: string }).message || '';
+  const name = (err as { name?: string }).name || '';
+  const status = (err as { status?: number }).status;
+  return (
+    status === 0 ||
+    name === 'TypeError' ||
+    msg.toLowerCase().includes('failed to fetch') ||
+    msg.toLowerCase().includes('network') ||
+    msg.toLowerCase().includes('connection') ||
+    msg.toLowerCase().includes('offline')
+  );
+}
+
+function isInvalidCredentialsError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = typeof err === 'string' ? err : (err as { message?: string }).message || '';
+  const code = (err as { code?: string }).code || '';
+  const status = (err as { status?: number }).status;
+  const lowerMsg = msg.toLowerCase();
+  const lowerCode = code.toLowerCase();
+
+  return (
+    status === 400 ||
+    lowerCode.includes('invalid') ||
+    lowerMsg.includes('invalid') ||
+    lowerMsg.includes('credentials')
+  );
+}
+
 export async function adminLogin(email: string, password: string): Promise<AdminSession> {
   const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+  const cleanPassword = password;
 
   if (!cleanEmail || !cleanPassword) {
-    throw new Error('Please enter both email and password.');
+    throw new Error('Incorrect email or password.');
   }
 
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: cleanEmail,
-    password: cleanPassword,
-  });
+  let authData;
+  let authError;
+  try {
+    const res = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: cleanPassword,
+    });
+    authData = res.data;
+    authError = res.error;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      throw new Error('Cannot reach the server. Check your internet connection and try again.');
+    }
+    console.error('Supabase auth error:', err);
+    throw new Error('An unexpected error occurred. Please try again.');
+  }
 
   if (authError || !authData.user) {
+    if (isNetworkError(authError)) {
+      throw new Error('Cannot reach the server. Check your internet connection and try again.');
+    }
+    if (isInvalidCredentialsError(authError)) {
+      throw new Error('Incorrect email or password.');
+    }
     console.error('Supabase auth error:', authError);
-    throw new Error(authError?.message || 'Invalid email or password.');
+    throw new Error('An unexpected error occurred. Please try again.');
   }
 
   const sessionUser = authData.user;
 
   // Verify user exists in the owners table
-  const { data: ownerData, error: ownerError } = await supabase
-    .from('owners')
-    .select('user_id')
-    .eq('user_id', sessionUser.id)
-    .maybeSingle();
-
-  if (ownerError || !ownerData) {
-    console.warn('Owner check failed or user not in owners table:', ownerError);
+  let ownerData;
+  let ownerError;
+  try {
+    const res = await supabase
+      .from('owners')
+      .select('user_id')
+      .eq('user_id', sessionUser.id)
+      .maybeSingle();
+    ownerData = res.data;
+    ownerError = res.error;
+  } catch (err) {
     await supabase.auth.signOut();
-    throw new Error('Access denied');
+    if (isNetworkError(err)) {
+      throw new Error('Cannot reach the server. Check your internet connection and try again.');
+    }
+    console.error('Owner check error:', err);
+    throw new Error('An unexpected error occurred. Please try again.');
+  }
+
+  if (ownerError) {
+    await supabase.auth.signOut();
+    if (isNetworkError(ownerError)) {
+      throw new Error('Cannot reach the server. Check your internet connection and try again.');
+    }
+    console.error('Owner check error:', ownerError);
+    throw new Error('An unexpected error occurred. Please try again.');
+  }
+
+  if (!ownerData) {
+    await supabase.auth.signOut();
+    throw new Error('This account does not have admin access.');
   }
 
   return {
@@ -74,31 +144,33 @@ export async function adminLogout(): Promise<void> {
 
 export async function getAdminSession(): Promise<AdminSession | null> {
   try {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) {
-      const user = data.session.user;
-      const { data: ownerData } = await supabase
-        .from('owners')
-        .select('user_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.user) {
+      return null;
+    }
 
-      if (ownerData) {
-        return {
-          id: user.id,
-          email: user.email || '',
-          role: 'admin',
-          logged_in_at: user.last_sign_in_at || new Date().toISOString(),
-        };
-      } else {
-        await supabase.auth.signOut();
-      }
+    const user = data.session.user;
+    const { data: ownerData, error: ownerError } = await supabase
+      .from('owners')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!ownerError && ownerData) {
+      return {
+        id: user.id,
+        email: user.email || '',
+        role: 'admin',
+        logged_in_at: user.last_sign_in_at || new Date().toISOString(),
+      };
+    } else {
+      await supabase.auth.signOut();
+      return null;
     }
   } catch (err) {
-    console.warn('Session check error:', err);
+    console.error('Session check error:', err);
+    return null;
   }
-
-  return null;
 }
 
 // ─── Booking list & detail (Explicit Columns Query) ──────────────────────────
