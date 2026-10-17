@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Package } from '../types';
 import { CheckIcon, SparklesIcon, ShoppingCartIcon } from './Icons';
 import { useCart } from '../hooks/useCart';
@@ -11,10 +11,15 @@ interface PackageCardProps {
 export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect }) => {
   const isPopular = Boolean(packageData.popular);
   const { items, addToCart, openCart } = useCart();
+  const [isCooldown, setIsCooldown] = useState(false);
 
   const cartItem = items.find((i) => i.itemId === packageData.id);
 
   const handleAddToCart = () => {
+    if (isCooldown) return;
+    setIsCooldown(true);
+    setTimeout(() => setIsCooldown(false), 300);
+
     addToCart({
       itemId: packageData.id,
       name: packageData.name,
@@ -28,7 +33,21 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
   };
 
   const handleBookNow = () => {
-    handleAddToCart();
+    if (isCooldown) return;
+    setIsCooldown(true);
+    setTimeout(() => setIsCooldown(false), 300);
+
+    addToCart({
+      itemId: packageData.id,
+      name: packageData.name,
+      category: 'Residential',
+      price: packageData.price,
+      formattedPrice: packageData.formattedPrice,
+      isQuote: false,
+      features: packageData.features,
+      itemType: 'package',
+    });
+
     if (onSelect) {
       onSelect(packageData);
     } else {
@@ -77,6 +96,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
         <button
           type="button"
           onClick={handleAddToCart}
+          disabled={isCooldown}
           className={`cq-btn ${isPopular ? 'cq-btn-primary' : 'cq-btn-outline'} cq-pkg-btn`}
           id={`add-package-${packageData.id}`}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
@@ -88,6 +108,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
         <button
           type="button"
           onClick={handleBookNow}
+          disabled={isCooldown}
           className="cq-btn cq-btn-secondary"
           style={{ fontSize: '0.85rem', padding: '8px 14px' }}
         >

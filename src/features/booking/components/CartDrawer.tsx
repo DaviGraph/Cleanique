@@ -76,7 +76,7 @@ export const CartDrawer: React.FC = () => {
                 }}
                 className="cq-btn cq-btn-primary cq-cart-browse-btn"
               >
-                Browse Packages & Rates
+                Browse Packages &amp; Rates
               </button>
             </div>
           ) : (
@@ -90,14 +90,17 @@ export const CartDrawer: React.FC = () => {
                       </span>
                       <h4 className="cq-cart-item-name">{item.name}</h4>
                     </div>
+                    {/* Clear "Remove" button */}
                     <button
                       type="button"
                       onClick={() => removeFromCart(item.id)}
                       className="cq-cart-item-remove-btn"
-                      title="Remove item"
+                      title={`Remove ${item.name}`}
                       aria-label={`Remove ${item.name}`}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: '#e53935' }}
                     >
-                      <TrashIcon size={15} color="#e53935" />
+                      <TrashIcon size={14} color="#e53935" />
+                      <span>Remove</span>
                     </button>
                   </div>
 
@@ -113,6 +116,7 @@ export const CartDrawer: React.FC = () => {
                       </span>
                     </div>
 
+                    {/* Stepper with >= 44px tap targets and spacing */}
                     <div className="cq-cart-qty-controls">
                       <button
                         type="button"
@@ -120,7 +124,7 @@ export const CartDrawer: React.FC = () => {
                         className="cq-cart-qty-btn"
                         aria-label="Decrease quantity"
                       >
-                        <MinusIcon size={12} />
+                        <MinusIcon size={14} />
                       </button>
                       <span className="cq-cart-qty-val">{item.quantity}</span>
                       <button
@@ -129,7 +133,7 @@ export const CartDrawer: React.FC = () => {
                         className="cq-cart-qty-btn"
                         aria-label="Increase quantity"
                       >
-                        <PlusIcon size={12} />
+                        <PlusIcon size={14} />
                       </button>
                     </div>
                   </div>
@@ -159,7 +163,7 @@ export const CartDrawer: React.FC = () => {
 
             <div className="cq-cart-guarantee">
               <ShieldCheckIcon size={14} color="#2ECDBF" />
-              <span>Zero upfront payment until you review & confirm booking</span>
+              <span>Zero upfront payment until you review &amp; confirm booking</span>
             </div>
 
             <div className="cq-cart-actions">
@@ -172,12 +176,15 @@ export const CartDrawer: React.FC = () => {
                 <span>Proceed to Checkout</span>
                 <ArrowRightIcon size={16} />
               </button>
+
+              {/* Clear Cart Button */}
               <button
                 type="button"
                 onClick={clearCart}
                 className="cq-cart-clear-btn"
+                id="cart-clear-btn"
               >
-                Empty Cart
+                Clear Cart
               </button>
             </div>
           </div>

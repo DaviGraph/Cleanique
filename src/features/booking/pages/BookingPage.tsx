@@ -49,6 +49,9 @@ export const BookingPage: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
+  // Cooldown state for add button taps (300ms)
+  const [cooldownPackageId, setCooldownPackageId] = useState<string | null>(null);
+
   // Mode: 'package' for cart / fixed-price packages, 'quote' for custom quote services
   const [bookingMode, setBookingMode] = useState<'package' | 'quote'>('package');
   const [selectedQuoteService, setSelectedQuoteService] = useState<Service | null>(null);
@@ -60,7 +63,7 @@ export const BookingPage: React.FC = () => {
   const [bookingResult, setBookingResult] = useState<CreateBookingResponse | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Form State (persisted in memory during wizard step transitions)
+  // Form State
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
@@ -109,16 +112,8 @@ export const BookingPage: React.FC = () => {
             );
             if (foundPkg) {
               setBookingMode('package');
-              addToCart({
-                itemId: foundPkg.id,
-                name: foundPkg.name,
-                category: 'Residential',
-                price: foundPkg.price,
-                formattedPrice: foundPkg.formattedPrice,
-                isQuote: false,
-                features: foundPkg.features,
-                itemType: 'package',
-              });
+              // NOTE: Items are added ONLY by explicit click on an Add button.
+              // Auto-addition here was removed per requirements.
             }
           }
 
@@ -151,7 +146,7 @@ export const BookingPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams, addToCart]);
+  }, [searchParams]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -166,6 +161,23 @@ export const BookingPage: React.FC = () => {
         return next;
       });
     }
+  };
+
+  const handleAddPackageClick = (pkg: Package) => {
+    if (cooldownPackageId === pkg.id) return;
+    setCooldownPackageId(pkg.id);
+    setTimeout(() => setCooldownPackageId(null), 300);
+
+    addToCart({
+      itemId: pkg.id,
+      name: pkg.name,
+      category: 'Residential',
+      price: pkg.price,
+      formattedPrice: pkg.formattedPrice,
+      isQuote: false,
+      features: pkg.features,
+      itemType: 'package',
+    });
   };
 
   const handleProceedToDetails = () => {
@@ -246,7 +258,7 @@ export const BookingPage: React.FC = () => {
 
       const resultBooking = await createBooking(bookingPayload);
 
-      // Clear cart on successful booking order
+      // Clear cart on successful booking
       if (!isQuoteMode) {
         clearCart();
       }
@@ -298,19 +310,18 @@ export const BookingPage: React.FC = () => {
           ) : currentStep === 1 ? (
             /* WIZARD STEP 1: SERVICE & PACKAGE SELECTION */
             <div className="cq-wizard-step-1">
-              {/* Mode Toggle Switch */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-                <div style={{ background: '#E6F4F1', padding: '4px', borderRadius: '12px', display: 'inline-flex', gap: '4px' }}>
+              {/* Mode Toggle Control - Exactly 100% Wide 2-Segment Control */}
+              <div className="cq-booking-tabs-wrap">
+                <div className="cq-booking-tabs">
                   <button
                     type="button"
                     onClick={() => {
                       setBookingMode('package');
                       setSelectedQuoteService(null);
                     }}
-                    className={`cq-btn ${bookingMode === 'package' ? 'cq-btn-primary' : 'cq-btn-outline'}`}
-                    style={{ borderRadius: '8px', padding: '10px 20px', fontSize: '0.9rem', border: 'none' }}
+                    className={`cq-btn cq-booking-tab-btn ${bookingMode === 'package' ? 'cq-btn-primary' : 'cq-btn-outline'}`}
                   >
-                    Residential Packages (Fixed Price)
+                    Packages (Fixed Price)
                   </button>
 
                   <button
@@ -320,8 +331,7 @@ export const BookingPage: React.FC = () => {
                       const firstQuote = services.find((s) => s.pricingType === 'quote') || null;
                       setSelectedQuoteService(firstQuote);
                     }}
-                    className={`cq-btn ${bookingMode === 'quote' ? 'cq-btn-primary' : 'cq-btn-outline'}`}
-                    style={{ borderRadius: '8px', padding: '10px 20px', fontSize: '0.9rem', border: 'none' }}
+                    className={`cq-btn cq-booking-tab-btn ${bookingMode === 'quote' ? 'cq-btn-primary' : 'cq-btn-outline'}`}
                   >
                     Specialized &amp; Commercial (Custom Quote)
                   </button>
@@ -381,18 +391,8 @@ export const BookingPage: React.FC = () => {
                           <div className="cq-pkg-divider" />
                           <button
                             type="button"
-                            onClick={() => {
-                              addToCart({
-                                itemId: pkg.id,
-                                name: pkg.name,
-                                category: 'Residential',
-                                price: pkg.price,
-                                formattedPrice: pkg.formattedPrice,
-                                isQuote: false,
-                                features: pkg.features,
-                                itemType: 'package',
-                              });
-                            }}
+                            onClick={() => handleAddPackageClick(pkg)}
+                            disabled={cooldownPackageId === pkg.id}
                             className="cq-btn cq-btn-primary cq-pkg-btn"
                             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                           >
@@ -753,10 +753,23 @@ export const BookingPage: React.FC = () => {
                 {/* Sidebar Summary */}
                 <aside className="cq-booking-sidebar">
                   <div className="cq-summary-card">
-                    <h3 className="cq-summary-heading">
-                      <ShoppingCartIcon size={18} color="#2ECDBF" />
-                      <span>{bookingMode === 'quote' ? 'Selected Service' : `Cart Items (${totalCount})`}</span>
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                      <h3 className="cq-summary-heading" style={{ margin: 0, border: 'none', padding: 0 }}>
+                        <ShoppingCartIcon size={18} color="#2ECDBF" />
+                        <span>{bookingMode === 'quote' ? 'Selected Service' : `Cart Items (${totalCount})`}</span>
+                      </h3>
+
+                      {bookingMode === 'package' && items.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={clearCart}
+                          className="cq-cart-clear-btn"
+                          style={{ fontSize: '0.78rem', color: '#e53935' }}
+                        >
+                          Clear cart
+                        </button>
+                      )}
+                    </div>
 
                     {bookingMode === 'quote' ? (
                       <div style={{ marginBottom: '16px' }}>
@@ -768,7 +781,7 @@ export const BookingPage: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                         {items.map((item) => (
                           <div key={item.id} className="cq-cart-sidebar-item">
                             <div style={{ flex: 1 }}>
@@ -778,36 +791,37 @@ export const BookingPage: React.FC = () => {
                               </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div className="cq-cart-qty-controls" style={{ padding: '1px 4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {/* Ergonomic Steppers with >= 44px tap targets */}
+                              <div className="cq-cart-qty-controls">
                                 <button
                                   type="button"
                                   onClick={() => updateQuantity(item.id, -1)}
                                   className="cq-cart-qty-btn"
                                   aria-label="Decrease quantity"
                                 >
-                                  <MinusIcon size={10} />
+                                  <MinusIcon size={12} />
                                 </button>
-                                <span className="cq-cart-qty-val" style={{ fontSize: '0.75rem' }}>
-                                  {item.quantity}
-                                </span>
+                                <span className="cq-cart-qty-val">{item.quantity}</span>
                                 <button
                                   type="button"
                                   onClick={() => updateQuantity(item.id, 1)}
                                   className="cq-cart-qty-btn"
                                   aria-label="Increase quantity"
                                 >
-                                  <PlusIcon size={10} />
+                                  <PlusIcon size={12} />
                                 </button>
                               </div>
 
+                              {/* Clear "Remove" Button */}
                               <button
                                 type="button"
                                 onClick={() => removeFromCart(item.id)}
-                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '3px' }}
-                                title="Remove item"
+                                className="cq-cart-item-remove-btn"
+                                title={`Remove ${item.name}`}
+                                aria-label={`Remove ${item.name}`}
                               >
-                                <TrashIcon size={14} color="#e53935" />
+                                <TrashIcon size={16} color="#e53935" />
                               </button>
                             </div>
                           </div>

@@ -93,7 +93,7 @@ export const AdminBookingsListPage: React.FC = () => {
       <div className="cq-admin-page-header">
         <div>
           <span className="cq-badge cq-badge-turquoise">Overview</span>
-          <h1 className="cq-admin-page-title">Operations & Bookings</h1>
+          <h1 className="cq-admin-page-title">Operations &amp; Bookings</h1>
           <p className="cq-admin-page-sub">
             Monitor incoming client bookings, verify PalmPay bank receipts, and issue custom commercial quotes.
           </p>
@@ -122,7 +122,7 @@ export const AdminBookingsListPage: React.FC = () => {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by reference, client name, or phone..."
+            placeholder="Search bookings"
             className="cq-input cq-admin-search-input"
             id="admin-search-input"
           />

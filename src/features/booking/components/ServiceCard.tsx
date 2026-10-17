@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Service } from '../types';
 import {
   HomeIcon,
@@ -41,10 +41,14 @@ function getServiceIcon(iconName: string) {
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) => {
   const { items, addToCart } = useCart();
+  const [isCooldown, setIsCooldown] = useState(false);
   const cartItem = items.find((i) => i.itemId === service.id);
 
   const handleAddToCart = () => {
-    // If dishwashing, set base price 3000
+    if (isCooldown) return;
+    setIsCooldown(true);
+    setTimeout(() => setIsCooldown(false), 300);
+
     const isDishwashing = service.category === 'add_on' || service.name.toLowerCase().includes('dish');
     const isQuote = service.pricingType === 'quote';
 
@@ -99,12 +103,19 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
         <button
           type="button"
           onClick={handleAddToCart}
+          disabled={isCooldown}
           className="cq-btn cq-btn-primary cq-service-btn"
           id={`add-service-${service.id}`}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
           <ShoppingCartIcon size={16} />
-          <span>{cartItem ? `In Cart (Qty: ${cartItem.quantity})` : service.pricingType === 'quote' ? 'Add Quote Request to Cart' : 'Add to Cart'}</span>
+          <span>
+            {cartItem
+              ? `In Cart (Qty: ${cartItem.quantity})`
+              : service.pricingType === 'quote'
+              ? 'Add Quote Request to Cart'
+              : 'Add to Cart'}
+          </span>
         </button>
 
         {onInquire && (
