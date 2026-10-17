@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { CartItem } from '../types';
 import type { CartContextType } from './CartContextType';
 import { CartContext } from './CartContextObject';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
-
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+
+  const location = useLocation();
+
+  // Clear cart when navigating away from the booking flow ('/' or '/book')
+  useEffect(() => {
+    const path = location.pathname;
+    const isBookingFlow = path === '/' || path === '/book';
+    if (!isBookingFlow) {
+      setItems([]);
+    }
+  }, [location.pathname]);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -24,6 +35,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
+    let isNewItem = false;
+    let updatedQty = 1;
+
+    // Pure functional state update without side effects inside the updater
     setItems((prev) => {
       const existingIdx = prev.findIndex(
         (i) => i.itemId === itemData.itemId || i.name === itemData.name
@@ -32,13 +47,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existingIdx >= 0) {
         const next = [...prev];
         const addQty = itemData.quantity || 1;
+        updatedQty = next[existingIdx].quantity + addQty;
         next[existingIdx] = {
           ...next[existingIdx],
-          quantity: next[existingIdx].quantity + addQty,
+          quantity: updatedQty,
         };
-        showNotification(`Updated: ${itemData.name} (Qty: ${next[existingIdx].quantity})`);
         return next;
       } else {
+        isNewItem = true;
         const newItem: CartItem = {
           id: itemData.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           itemId: itemData.itemId,
@@ -49,23 +65,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           quantity: itemData.quantity || 1,
           isQuote: false,
           features: itemData.features,
-          itemType: 'package',
+          itemType: itemData.itemType || 'package',
         };
-        showNotification(`Added to Cart: ${itemData.name}`);
         return [...prev, newItem];
       }
     });
+
+    // Side effect triggers strictly outside the state updater
+    if (isNewItem) {
+      showNotification(`Added: ${itemData.name}`);
+    } else {
+      showNotification(`Updated: ${itemData.name} (Qty: ${updatedQty})`);
+    }
+
     return true;
   };
 
   const removeFromCart = (id: string) => {
+    let removedName: string | null = null;
+
     setItems((prev) => {
       const removed = prev.find((i) => i.id === id);
       if (removed) {
-        showNotification(`Removed: ${removed.name}`);
+        removedName = removed.name;
       }
       return prev.filter((i) => i.id !== id);
     });
+
+    if (removedName) {
+      showNotification(`Removed: ${removedName}`);
+    }
   };
 
   const updateQuantity = (id: string, delta: number) => {

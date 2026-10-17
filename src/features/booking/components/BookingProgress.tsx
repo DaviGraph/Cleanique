@@ -9,11 +9,29 @@ interface BookingProgressProps {
 
 export const BookingProgress: React.FC<BookingProgressProps> = ({
   currentStep,
+  totalSteps,
   stepLabels,
 }) => {
+  const currentLabel = stepLabels[currentStep - 1] || '';
+  const progressPercent = Math.min(100, Math.max(0, (currentStep / totalSteps) * 100));
+
   return (
     <div className="cq-progress-container" aria-label="Booking steps">
-      <div className="cq-progress-steps">
+      {/* Mobile Step Indicator (screens <= 768px) */}
+      <div className="cq-progress-mobile">
+        <div className="cq-progress-mobile-text">
+          Step {currentStep} of {totalSteps} · {currentLabel}
+        </div>
+        <div className="cq-progress-mobile-bar-bg">
+          <div
+            className="cq-progress-mobile-bar-fill"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop Step Indicator (screens > 768px) */}
+      <div className="cq-progress-steps cq-progress-desktop">
         {stepLabels.map((label, index) => {
           const stepNumber = index + 1;
           const isCompleted = stepNumber < currentStep;

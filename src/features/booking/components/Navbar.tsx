@@ -13,11 +13,11 @@ export const Navbar: React.FC = () => {
       <div className="cq-container cq-navbar-inner">
         <Link to="/" className="cq-brand" aria-label="Cleanique Home">
           <div className="cq-brand-icon">
-            <SparklesIcon size={22} color="#102A29" />
+            <SparklesIcon size={20} color="#102A29" />
           </div>
           <div className="cq-brand-text">
             <span className="cq-brand-name">Cleanique</span>
-            <span className="cq-brand-tag">HYGIENE & FACILITY CARE</span>
+            <span className="cq-brand-tag">HYGIENE &amp; FACILITY CARE</span>
           </div>
         </Link>
 
@@ -25,20 +25,20 @@ export const Navbar: React.FC = () => {
           {isHomePage ? (
             <>
               <a href="#packages" className="cq-nav-link">Residential Packages</a>
-              <a href="#services" className="cq-nav-link">Specialized & Quotes</a>
+              <a href="#services" className="cq-nav-link">Specialized &amp; Quotes</a>
               <a href="#contact" className="cq-nav-link">Contact Us</a>
             </>
           ) : (
             <>
               <Link to="/#packages" className="cq-nav-link">Residential Packages</Link>
-              <Link to="/#services" className="cq-nav-link">Specialized & Quotes</Link>
+              <Link to="/#services" className="cq-nav-link">Specialized &amp; Quotes</Link>
               <Link to="/#contact" className="cq-nav-link">Contact Us</Link>
             </>
           )}
         </nav>
 
-        <div className="cq-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Cart Icon Button */}
+        <div className="cq-nav-actions">
+          {/* Clearly visible Cart Icon Button with count badge (not faded) */}
           <button
             type="button"
             onClick={openCart}
@@ -47,10 +47,8 @@ export const Navbar: React.FC = () => {
             title="View Cart"
             id="nav-cart-btn"
           >
-            <ShoppingCartIcon size={20} color="#F5F9F8" />
-            {totalCount > 0 && (
-              <span className="cq-nav-cart-badge">{totalCount}</span>
-            )}
+            <ShoppingCartIcon size={20} color="#102A29" />
+            <span className="cq-nav-cart-badge">{totalCount}</span>
           </button>
 
           <Link to="/book" className="cq-btn cq-btn-primary cq-nav-cta">

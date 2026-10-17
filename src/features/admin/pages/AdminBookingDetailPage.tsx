@@ -17,7 +17,16 @@ import {
   CheckCircleIcon,
   ChevronLeftIcon,
   ExternalLinkIcon,
+  PaperclipIcon,
 } from '../../booking/components/Icons';
+
+interface ActiveReceiptModal {
+  paymentId: string;
+  receiptPath: string;
+  fileType: 'image' | 'pdf';
+  submittedAt: string;
+  sizeFormatted: string;
+}
 
 export const AdminBookingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,8 +37,12 @@ export const AdminBookingDetailPage: React.FC = () => {
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  // Receipt Opening State
-  const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
+  // Receipt Modal State
+  const [activeModalReceipt, setActiveModalReceipt] = useState<ActiveReceiptModal | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [isFetchingSignedUrl, setIsFetchingSignedUrl] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isOpeningNewTab, setIsOpeningNewTab] = useState(false);
 
   // Payment Verification Panel State
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>('');
@@ -85,30 +98,73 @@ export const AdminBookingDetailPage: React.FC = () => {
     };
   }, [id]);
 
-  // Click handler for View receipt — calls createSignedUrl ONLY on click, opens in new tab with noopener
-  const handleViewReceiptClick = async (receiptPath: string, paymentId: string) => {
-    if (!receiptPath) {
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!activeModalReceipt) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeReceiptModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeModalReceipt]);
+
+  // Click handler for View receipt — calls createSignedUrl ONLY on click & opens modal
+  const handleOpenReceiptModal = async (payment: PaymentRow) => {
+    if (!payment.receipt_path) {
       setActionError('Receipt file path is missing.');
       return;
     }
 
+    const modalData: ActiveReceiptModal = {
+      paymentId: payment.id,
+      receiptPath: payment.receipt_path,
+      fileType: payment.file_type,
+      submittedAt: payment.submitted_at,
+      sizeFormatted: payment.size_formatted,
+    };
+
+    setActiveModalReceipt(modalData);
+    setSignedUrl(null);
+    setModalError(null);
+    setIsFetchingSignedUrl(true);
+
     try {
-      setLoadingReceiptId(paymentId);
-      setActionError(null);
+      const url = await createSignedReceiptUrl(payment.receipt_path);
+      setSignedUrl(url);
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Failed to load receipt.');
+    } finally {
+      setIsFetchingSignedUrl(false);
+    }
+  };
 
-      const signedUrl = await createSignedReceiptUrl(receiptPath);
+  const closeReceiptModal = () => {
+    setActiveModalReceipt(null);
+    setSignedUrl(null); // Drop reference to revoke
+    setModalError(null);
+  };
 
-      // Open immediately in a new tab with noopener
-      const newWin = window.open(signedUrl, '_blank', 'noopener,noreferrer');
+  // Fresh 60-second link generation for "Open in new tab"
+  const handleOpenInNewTab = async () => {
+    if (!activeModalReceipt) return;
+
+    try {
+      setIsOpeningNewTab(true);
+      const freshUrl = await createSignedReceiptUrl(activeModalReceipt.receiptPath);
+      const newWin = window.open(freshUrl, '_blank', 'noopener,noreferrer');
       if (!newWin) {
-        setActionError('Pop-up blocked. Please allow pop-ups for this site to view receipts.');
+        setModalError('Pop-up blocked. Please allow pop-ups for this site to open in a new tab.');
       }
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : 'Could not generate signed receipt URL.'
-      );
+      setModalError(err instanceof Error ? err.message : 'Failed to generate new receipt link.');
     } finally {
-      setLoadingReceiptId(null);
+      setIsOpeningNewTab(false);
     }
   };
 
@@ -280,6 +336,11 @@ export const AdminBookingDetailPage: React.FC = () => {
   };
 
   const waMessage = getWhatsAppMessage(booking);
+
+  const isModalPdf = activeModalReceipt
+    ? activeModalReceipt.fileType.toLowerCase().includes('pdf') ||
+      activeModalReceipt.receiptPath.toLowerCase().endsWith('.pdf')
+    : false;
 
   return (
     <div className="cq-container cq-admin-container">
@@ -465,7 +526,7 @@ export const AdminBookingDetailPage: React.FC = () => {
             </section>
           )}
 
-          {/* Receipts Section (Lists every payments row for the booking) */}
+          {/* Receipts Section with File Type, Size, and Submitted Time metadata */}
           <section className="cq-admin-card">
             <div className="cq-admin-card-header-row">
               <h2 className="cq-admin-card-title">Submitted Receipts</h2>
@@ -481,7 +542,19 @@ export const AdminBookingDetailPage: React.FC = () => {
             ) : (
               <div className="cq-admin-receipts-list">
                 {booking.payments.map((payment: PaymentRow) => (
-                  <div key={payment.id} className="cq-admin-receipt-row" style={{ borderBottom: '1px solid #EAEAEA', padding: '12px 0' }}>
+                  <div
+                    key={payment.id}
+                    className="cq-admin-receipt-row"
+                    style={{
+                      borderBottom: '1px solid #EAEAEA',
+                      padding: '14px 0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '16px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     <div className="cq-receipt-meta-box">
                       <span className="cq-receipt-icon-tag">{payment.file_type.toUpperCase()}</span>
                       <div>
@@ -489,7 +562,7 @@ export const AdminBookingDetailPage: React.FC = () => {
                           Submitted {new Date(payment.submitted_at).toLocaleString()}
                         </div>
                         <div className="cq-receipt-time">
-                          Size: {payment.size_formatted} &bull; Status: <strong>{payment.status}</strong>
+                          Type: <strong>{payment.file_type.toUpperCase()}</strong> &bull; Size: <strong>{payment.size_formatted}</strong> &bull; Status: <strong>{payment.status}</strong>
                           {payment.verified_amount > 0 && ` &bull; Verified: ₦${payment.verified_amount.toLocaleString()}`}
                           {payment.rejection_reason && ` &bull; Reason: ${payment.rejection_reason}`}
                         </div>
@@ -498,20 +571,13 @@ export const AdminBookingDetailPage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => handleViewReceiptClick(payment.receipt_path, payment.id)}
-                      disabled={loadingReceiptId === payment.id}
+                      onClick={() => handleOpenReceiptModal(payment)}
                       className="cq-btn cq-btn-secondary cq-btn-sm"
                       id={`view-receipt-btn-${payment.id}`}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
-                      {loadingReceiptId === payment.id ? (
-                        'Generating URL...'
-                      ) : (
-                        <>
-                          <span>View receipt</span>
-                          <ExternalLinkIcon size={13} />
-                        </>
-                      )}
+                      <PaperclipIcon size={14} />
+                      <span>View receipt</span>
                     </button>
                   </div>
                 ))}
@@ -782,6 +848,133 @@ export const AdminBookingDetailPage: React.FC = () => {
           </div>
         </aside>
       </div>
+
+      {/* RECEIPT VIEWER MODAL */}
+      {activeModalReceipt && (
+        <div className="cq-modal-overlay" onClick={closeReceiptModal}>
+          <div
+            className="cq-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Payment Receipt Modal"
+          >
+            {/* Modal Header */}
+            <div className="cq-modal-header">
+              <div>
+                <h3 className="cq-modal-title">Payment Receipt Preview</h3>
+                <div style={{ fontSize: '0.78rem', color: '#667', marginTop: '2px' }}>
+                  Type: <strong>{activeModalReceipt.fileType.toUpperCase()}</strong> &bull; Size: <strong>{activeModalReceipt.sizeFormatted}</strong> &bull; Submitted: {new Date(activeModalReceipt.submittedAt).toLocaleString()}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeReceiptModal}
+                className="cq-modal-close-btn"
+                aria-label="Close modal"
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="cq-modal-body">
+              {isFetchingSignedUrl ? (
+                <div className="cq-loading-state" style={{ padding: '40px 0' }}>
+                  <div className="cq-spinner" />
+                  <p>Generating 60-second secure receipt link...</p>
+                </div>
+              ) : modalError ? (
+                <div style={{ padding: '24px', textAlign: 'center' }}>
+                  <p className="cq-error-msg" style={{ marginBottom: '16px' }}>{modalError}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenReceiptModal({
+                      id: activeModalReceipt.paymentId,
+                      receipt_path: activeModalReceipt.receiptPath,
+                      file_type: activeModalReceipt.fileType,
+                      submitted_at: activeModalReceipt.submittedAt,
+                      size_formatted: activeModalReceipt.sizeFormatted,
+                      size: 0,
+                      status: 'pending',
+                      verified_amount: 0,
+                      rejection_reason: null,
+                    })}
+                    className="cq-btn cq-btn-secondary"
+                  >
+                    Retry Loading
+                  </button>
+                </div>
+              ) : signedUrl ? (
+                isModalPdf ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '100%' }}>
+                    <iframe
+                      src={signedUrl}
+                      title="Receipt PDF Preview"
+                      style={{
+                        width: '100%',
+                        height: '60dvh',
+                        border: '1px solid #DCE5E3',
+                        borderRadius: '12px',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleOpenInNewTab}
+                      disabled={isOpeningNewTab}
+                      className="cq-btn cq-btn-outline"
+                      style={{ fontSize: '0.88rem' }}
+                    >
+                      <ExternalLinkIcon size={14} />
+                      <span>{isOpeningNewTab ? 'Opening...' : 'Open PDF in New Window'}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                    <img
+                      src={signedUrl}
+                      alt="Payment Receipt"
+                      className="cq-modal-receipt-img"
+                      style={{
+                        maxHeight: '75dvh',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                      }}
+                    />
+                  </div>
+                )
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="cq-modal-footer">
+              <button
+                type="button"
+                onClick={handleOpenInNewTab}
+                disabled={isOpeningNewTab || !signedUrl}
+                className="cq-btn cq-btn-secondary"
+                id="modal-open-new-tab-btn"
+                style={{ fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <ExternalLinkIcon size={14} />
+                <span>{isOpeningNewTab ? 'Generating fresh link...' : 'Open in new tab'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={closeReceiptModal}
+                className="cq-btn cq-btn-outline"
+                style={{ fontSize: '0.88rem' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

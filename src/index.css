@@ -52,7 +52,9 @@
   padding: 0;
 }
 
-html {
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   background-color: var(--cq-bg);
   color: var(--cq-text);
@@ -62,16 +64,30 @@ html {
 }
 
 body {
-  min-height: 100vh;
-  background-color: var(--cq-bg);
-  color: var(--cq-text);
-  overflow-x: hidden;
+  min-height: 100dvh;
 }
 
-#root {
-  min-height: 100vh;
+#root, .cq-page-wrapper, .cq-admin-app {
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
+}
+
+p, span, h1, h2, h3, h4, h5, h6, a, label, button, td, th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+input, select, textarea {
+  font-size: 16px !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+img, svg, video, canvas, iframe {
+  max-width: 100%;
 }
 
 a {
@@ -94,6 +110,7 @@ button {
   margin-right: auto;
   padding-left: 24px;
   padding-right: 24px;
+  box-sizing: border-box;
 }
 
 /* Badges */
@@ -138,7 +155,8 @@ button {
   border-radius: var(--radius-full);
   transition: all var(--transition-normal);
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
 }
 
 .cq-btn-primary {
@@ -255,7 +273,7 @@ button {
   }
   
   .cq-container {
-    padding-left: 18px;
-    padding-right: 18px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
