@@ -15,7 +15,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="cq-brand-text">
                 <span className="cq-brand-name cq-brand-name-light">Cleanique</span>
-                <span className="cq-brand-tag cq-brand-tag-light">HYGIENE & FACILITY CARE</span>
+                <span className="cq-brand-tag cq-brand-tag-light">HYGIENE &amp; FACILITY CARE</span>
               </div>
             </div>
             <p className="cq-footer-tagline">
@@ -37,7 +37,7 @@ export const Footer: React.FC = () => {
 
           {/* Operating Hours & Support */}
           <div className="cq-footer-links-col">
-            <h4 className="cq-footer-heading">Hours & Support</h4>
+            <h4 className="cq-footer-heading">Hours &amp; Support</h4>
             <p className="cq-footer-text">
               Mon – Sat: 7:30 AM – 7:00 PM<br />
               Sunday: 9:00 AM – 5:00 PM
@@ -58,17 +58,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="cq-footer-bottom">
-          <p>© {new Date().getFullYear()} Cleanique Hygiene & Facility Care. All rights reserved.</p>
-          <div className="cq-footer-bottom-links">
-            <Link
-              to="/admin/login"
-              style={{ color: 'rgba(245, 249, 248, 0.45)', textDecoration: 'none', fontSize: '0.8rem', transition: 'color 0.2s' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#2ECDBF')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(245, 249, 248, 0.45)')}
-            >
-              Admin Portal
-            </Link>
-          </div>
+          <p>© {new Date().getFullYear()} Cleanique Hygiene &amp; Facility Care. All rights reserved.</p>
         </div>
       </div>
     </footer>
