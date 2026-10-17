@@ -42,7 +42,6 @@ export const AdminBookingDetailPage: React.FC = () => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isFetchingSignedUrl, setIsFetchingSignedUrl] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [isOpeningNewTab, setIsOpeningNewTab] = useState(false);
 
   // Payment Verification Panel State
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>('');
@@ -114,7 +113,7 @@ export const AdminBookingDetailPage: React.FC = () => {
     };
   }, [activeModalReceipt]);
 
-  // Click handler for View receipt — calls createSignedUrl ONLY on click & opens modal
+  // Click handler for View receipt — calls createSignedUrl ONLY inside click handler
   const handleOpenReceiptModal = async (payment: PaymentRow) => {
     if (!payment.receipt_path) {
       setActionError('Receipt file path is missing.');
@@ -138,7 +137,8 @@ export const AdminBookingDetailPage: React.FC = () => {
       const url = await createSignedReceiptUrl(payment.receipt_path);
       setSignedUrl(url);
     } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Failed to load receipt.');
+      // Display real error message if createSignedUrl fails
+      setModalError(err instanceof Error ? err.message : 'Failed to generate signed receipt URL.');
     } finally {
       setIsFetchingSignedUrl(false);
     }
@@ -148,24 +148,6 @@ export const AdminBookingDetailPage: React.FC = () => {
     setActiveModalReceipt(null);
     setSignedUrl(null); // Drop reference to revoke
     setModalError(null);
-  };
-
-  // Fresh 60-second link generation for "Open in new tab"
-  const handleOpenInNewTab = async () => {
-    if (!activeModalReceipt) return;
-
-    try {
-      setIsOpeningNewTab(true);
-      const freshUrl = await createSignedReceiptUrl(activeModalReceipt.receiptPath);
-      const newWin = window.open(freshUrl, '_blank', 'noopener,noreferrer');
-      if (!newWin) {
-        setModalError('Pop-up blocked. Please allow pop-ups for this site to open in a new tab.');
-      }
-    } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Failed to generate new receipt link.');
-    } finally {
-      setIsOpeningNewTab(false);
-    }
   };
 
   const reloadBooking = async () => {
@@ -849,7 +831,7 @@ export const AdminBookingDetailPage: React.FC = () => {
         </aside>
       </div>
 
-      {/* RECEIPT VIEWER MODAL */}
+      {/* RECEIPT VIEWER IN-PAGE MODAL */}
       {activeModalReceipt && (
         <div className="cq-modal-overlay" onClick={closeReceiptModal}>
           <div
@@ -882,10 +864,11 @@ export const AdminBookingDetailPage: React.FC = () => {
               {isFetchingSignedUrl ? (
                 <div className="cq-loading-state" style={{ padding: '40px 0' }}>
                   <div className="cq-spinner" />
-                  <p>Generating 60-second secure receipt link...</p>
+                  <p>Generating secure receipt link...</p>
                 </div>
               ) : modalError ? (
                 <div style={{ padding: '24px', textAlign: 'center' }}>
+                  {/* Show exact real error message if createSignedUrl fails */}
                   <p className="cq-error-msg" style={{ marginBottom: '16px' }}>{modalError}</p>
                   <button
                     type="button"
@@ -902,7 +885,7 @@ export const AdminBookingDetailPage: React.FC = () => {
                     })}
                     className="cq-btn cq-btn-secondary"
                   >
-                    Retry Loading
+                    Retry
                   </button>
                 </div>
               ) : signedUrl ? (
@@ -919,16 +902,16 @@ export const AdminBookingDetailPage: React.FC = () => {
                         backgroundColor: '#ffffff',
                       }}
                     />
-                    <button
-                      type="button"
-                      onClick={handleOpenInNewTab}
-                      disabled={isOpeningNewTab}
+                    <a
+                      href={signedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="cq-btn cq-btn-outline"
-                      style={{ fontSize: '0.88rem' }}
+                      style={{ fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
                       <ExternalLinkIcon size={14} />
-                      <span>{isOpeningNewTab ? 'Opening...' : 'Open PDF in New Window'}</span>
-                    </button>
+                      <span>Open PDF</span>
+                    </a>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
@@ -937,7 +920,7 @@ export const AdminBookingDetailPage: React.FC = () => {
                       alt="Payment Receipt"
                       className="cq-modal-receipt-img"
                       style={{
-                        maxHeight: '75dvh',
+                        maxHeight: '80dvh',
                         maxWidth: '100%',
                         objectFit: 'contain',
                         borderRadius: '12px',
@@ -951,17 +934,19 @@ export const AdminBookingDetailPage: React.FC = () => {
 
             {/* Modal Footer */}
             <div className="cq-modal-footer">
-              <button
-                type="button"
-                onClick={handleOpenInNewTab}
-                disabled={isOpeningNewTab || !signedUrl}
-                className="cq-btn cq-btn-secondary"
-                id="modal-open-new-tab-btn"
-                style={{ fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <ExternalLinkIcon size={14} />
-                <span>{isOpeningNewTab ? 'Generating fresh link...' : 'Open in new tab'}</span>
-              </button>
+              {signedUrl && (
+                <a
+                  href={signedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cq-btn cq-btn-secondary"
+                  id="modal-open-new-tab-link"
+                  style={{ fontSize: '0.88rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <ExternalLinkIcon size={14} />
+                  <span>Open in new tab</span>
+                </a>
+              )}
 
               <button
                 type="button"
