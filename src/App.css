@@ -670,14 +670,16 @@
   background-color: var(--cq-turquoise);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .cq-progress-desktop {
     display: none !important;
   }
   .cq-progress-mobile {
     display: block !important;
   }
+}
 
+@media (max-width: 768px) {
   .cq-hero-metrics {
     flex-direction: column;
     align-items: flex-start;
