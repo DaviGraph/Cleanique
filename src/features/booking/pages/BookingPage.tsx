@@ -107,6 +107,9 @@ export const BookingPage: React.FC = () => {
           setPackages(fetchedPackages);
 
           const packageQuery = searchParams.get('package');
+          const serviceQuery = searchParams.get('service');
+          const stepQuery = searchParams.get('step');
+
           if (packageQuery) {
             const foundPkg = fetchedPackages.find(
               (p) => p.id === packageQuery || p.id === `pkg_${packageQuery}`
@@ -123,10 +126,13 @@ export const BookingPage: React.FC = () => {
                 features: foundPkg.features,
                 itemType: 'package',
               });
+
+              if (stepQuery === '2') {
+                setCurrentStep(2);
+              }
             }
           }
 
-          const serviceQuery = searchParams.get('service');
           if (serviceQuery) {
             const foundService = fetchedServices.find(
               (s) => s.id === serviceQuery || s.id === `srv_${serviceQuery}`
@@ -137,6 +143,10 @@ export const BookingPage: React.FC = () => {
                 setSelectedQuoteService(foundService);
               } else if (foundService.category === 'residential') {
                 setBookingMode('package');
+              }
+
+              if (stepQuery === '2') {
+                setCurrentStep(2);
               }
             }
           }

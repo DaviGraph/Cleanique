@@ -53,11 +53,11 @@ export const HomePage: React.FC = () => {
   }, []);
 
   const handleSelectPackage = (pkg: Package) => {
-    navigate(`/book?package=${pkg.id}`);
+    navigate(`/book?package=${pkg.id}&step=2`);
   };
 
   const handleInquireService = (srv: Service) => {
-    navigate(`/book?service=${srv.id}`);
+    navigate(`/book?service=${srv.id}&step=2`);
   };
 
   return (
