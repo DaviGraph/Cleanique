@@ -546,15 +546,18 @@
 }
 
 .cq-booking-tab-btn {
-  flex: 1 1 50%;
-  width: 50%;
+  /* Explicit overrides of .cq-btn to guarantee 50% width */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
   min-height: 48px;
-  border-radius: 8px;
+  border-radius: 8px !important;
   font-size: 0.88rem;
   font-weight: 700;
   white-space: normal;
   word-wrap: break-word;
-  padding: 10px 8px;
+  overflow-wrap: anywhere;
+  padding: 10px 8px !important;
   text-align: center;
   display: flex;
   align-items: center;
@@ -562,6 +565,7 @@
   line-height: 1.25;
   border: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -654,7 +658,9 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--cq-text-muted);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .cq-progress-step.is-active .cq-step-label {
@@ -968,7 +974,7 @@
 
 .cq-admin-search-wrap {
   flex: 1;
-  min-width: 240px;
+  min-width: 0;
   width: 100%;
 }
 
@@ -1000,8 +1006,8 @@
 .cq-admin-filter-select {
   padding: 8px 14px;
   font-size: 0.85rem;
-  width: auto;
-  min-width: 150px;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -1039,19 +1045,18 @@
 }
 
 @media (max-width: 640px) {
+  /* 2-column stat grid fits on small screens without clipping */
   .cq-admin-stats-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
+  /* Keep booking tabs side-by-side at all sizes — they're already 50% each */
   .cq-booking-tabs {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
   }
   .cq-booking-tab-btn {
-    width: 100%;
-    flex: 1 1 100%;
-    min-height: 44px;
-    padding: 10px 12px;
-    font-size: 0.85rem;
+    min-height: 48px;
+    font-size: 0.82rem;
+    padding: 10px 6px !important;
   }
   .cq-pkg-card,
   .cq-service-card,
@@ -1328,21 +1333,22 @@
 /* Floating Cart Button */
 .cq-floating-cart-btn {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  right: 16px;
   z-index: 999;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #102A29;
   border: 1.5px solid #2ECDBF;
   color: #F5F9F8;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border-radius: 9999px;
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(16, 42, 41, 0.45), 0 0 16px rgba(46, 205, 191, 0.3);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   animation: cq-bounce-in 0.4s ease-out;
+  max-width: calc(100vw - 32px);
 }
 
 @keyframes cq-bounce-in {
