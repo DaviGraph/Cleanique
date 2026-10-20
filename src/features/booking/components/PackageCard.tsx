@@ -10,7 +10,7 @@ interface PackageCardProps {
 
 export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect }) => {
   const isPopular = Boolean(packageData.popular);
-  const { items, addToCart, openCart } = useCart();
+  const { items, addToCart, selectPackage, openCart } = useCart();
   const [isCooldown, setIsCooldown] = useState(false);
 
   const cartItem = items.find((i) => i.itemId === packageData.id);
@@ -37,7 +37,7 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
     setIsCooldown(true);
     setTimeout(() => setIsCooldown(false), 300);
 
-    addToCart({
+    selectPackage({
       itemId: packageData.id,
       name: packageData.name,
       category: 'Residential',

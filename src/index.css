@@ -231,18 +231,37 @@ button {
 
 .cq-section-title {
   font-family: var(--font-display);
-  font-size: 2.35rem;
+  font-size: clamp(1.6rem, 5vw, 2.35rem);
   font-weight: 700;
   color: var(--cq-deep-teal);
   margin-top: 12px;
   margin-bottom: 14px;
   line-height: 1.2;
+  word-break: break-word;
 }
 
 .cq-section-subtitle {
-  font-size: 1.05rem;
+  font-size: clamp(0.92rem, 3vw, 1.05rem);
   color: var(--cq-text-muted);
   line-height: 1.6;
+}
+
+.cq-step-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 5vw, 2.2rem);
+  font-weight: 800;
+  color: var(--cq-deep-teal);
+  line-height: 1.2;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cq-step-subtitle {
+  font-size: clamp(0.88rem, 3vw, 1rem);
+  color: var(--cq-text-muted);
+  line-height: 1.5;
 }
 
 /* Micro-animations */

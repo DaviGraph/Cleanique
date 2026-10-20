@@ -37,6 +37,7 @@ export const BookingPage: React.FC = () => {
   const {
     items,
     addToCart,
+    selectPackage,
     removeFromCart,
     updateQuantity,
     clearCart,
@@ -112,8 +113,16 @@ export const BookingPage: React.FC = () => {
             );
             if (foundPkg) {
               setBookingMode('package');
-              // NOTE: Items are added ONLY by explicit click on an Add button.
-              // Auto-addition here was removed per requirements.
+              selectPackage({
+                itemId: foundPkg.id,
+                name: foundPkg.name,
+                category: 'Residential',
+                price: foundPkg.price,
+                formattedPrice: foundPkg.formattedPrice,
+                isQuote: false,
+                features: foundPkg.features,
+                itemType: 'package',
+              });
             }
           }
 
