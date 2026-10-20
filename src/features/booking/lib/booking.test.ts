@@ -85,9 +85,22 @@ describe('Status Label Mapping', () => {
   });
 });
 
-describe('Cart Total Calculation', () => {
+describe('Cart Total Calculation and Selection', () => {
   function calculateTotal(items: { price: number; quantity: number }[]) {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }
+
+  function selectPackage(currentItems: any[], pkg: any) {
+    const nonPackageItems = currentItems.filter((i) => i.itemType !== 'package');
+    const newItem = {
+      id: pkg.id,
+      itemId: pkg.id,
+      name: pkg.name,
+      price: pkg.price,
+      quantity: 1,
+      itemType: 'package',
+    };
+    return [...nonPackageItems, newItem];
   }
 
   it('calculates total and deposit correctly', () => {
@@ -98,5 +111,13 @@ describe('Cart Total Calculation', () => {
     const total = calculateTotal(cart);
     expect(total).toBe(90000);
     expect(Math.round(total * 0.5)).toBe(45000);
+  });
+
+  it('replaces existing package on explicit Book Now selection', () => {
+    let cart = [{ id: 'pkg_1', itemId: 'pkg_1', name: 'Single Room', price: 20000, quantity: 1, itemType: 'package' }];
+    cart = selectPackage(cart, { id: 'pkg_2', name: '2 Bedroom', price: 35000 });
+    expect(cart.length).toBe(1);
+    expect(cart[0].itemId).toBe('pkg_2');
+    expect(cart[0].quantity).toBe(1);
   });
 });

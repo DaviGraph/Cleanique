@@ -158,32 +158,33 @@
   border: 1px solid var(--cq-turquoise);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .cq-brand-tag {
     display: none !important;
   }
   .cq-navbar-inner {
-    height: 64px;
-    padding-left: 10px;
-    padding-right: 10px;
+    height: 60px;
+    padding-left: 8px;
+    padding-right: 8px;
     gap: 6px;
   }
   .cq-brand {
     gap: 6px;
+    min-width: 0;
   }
   .cq-brand-icon {
     width: 32px;
     height: 32px;
   }
   .cq-brand-name {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
   .cq-nav-actions {
-    gap: 8px;
+    gap: 6px;
   }
   .cq-nav-cta {
-    padding: 8px 14px;
-    font-size: 0.82rem;
+    padding: 7px 12px;
+    font-size: 0.8rem;
   }
   .cq-nav-cart-btn {
     padding: 6px 10px;
@@ -237,12 +238,13 @@
 
 .cq-hero-title {
   font-family: var(--font-display);
-  font-size: 3.4rem;
+  font-size: clamp(2rem, 7vw, 3.4rem);
   line-height: 1.15;
   font-weight: 800;
   letter-spacing: -0.03em;
   margin-bottom: 22px;
   color: var(--cq-white);
+  word-break: break-word;
 }
 
 .cq-hero-title-highlight {
@@ -670,7 +672,7 @@
   background-color: var(--cq-turquoise);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .cq-progress-desktop {
     display: none !important;
   }
@@ -827,7 +829,7 @@
   color: #fca5a5;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .cq-admin-nav-inner {
     height: auto;
     padding-top: 12px;
@@ -835,10 +837,10 @@
     flex-direction: column;
   }
   .cq-admin-nav-desktop {
-    display: none;
+    display: none !important;
   }
   .cq-admin-hamburger-btn {
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
   }
@@ -1002,18 +1004,16 @@
   min-width: 150px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .cq-admin-page-header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
   }
   .cq-admin-stats-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .cq-admin-stats-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
   }
   .cq-admin-filters-bar {
     flex-direction: column;
@@ -1028,7 +1028,38 @@
   }
   .cq-admin-dropdowns-wrap {
     flex-direction: column;
+    align-items: stretch;
     gap: 12px;
+  }
+  .cq-admin-filter-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cq-admin-stats-row {
+    grid-template-columns: 1fr;
+  }
+  .cq-booking-tabs {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cq-booking-tab-btn {
+    width: 100%;
+    flex: 1 1 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+  .cq-pkg-card,
+  .cq-service-card,
+  .cq-card {
+    padding: 20px 16px;
+  }
+  .cq-pkg-price-amount {
+    font-size: 1.75rem;
   }
 }
 

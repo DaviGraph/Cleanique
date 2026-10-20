@@ -81,6 +81,32 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const selectPackage = (
+    itemData: Omit<CartItem, 'id' | 'quantity'> & { id?: string }
+  ) => {
+    setItems((prev) => {
+      const nonPackageItems = prev.filter((i) => i.itemType !== 'package');
+      const existingPkg = prev.find((i) => i.itemId === itemData.itemId || i.name === itemData.name);
+
+      const newItem: CartItem = {
+        id: existingPkg?.id || itemData.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        itemId: itemData.itemId,
+        name: itemData.name,
+        category: itemData.category || 'Residential',
+        price: itemData.price,
+        formattedPrice: itemData.formattedPrice,
+        quantity: 1,
+        isQuote: false,
+        features: itemData.features,
+        itemType: 'package',
+      };
+
+      return [...nonPackageItems, newItem];
+    });
+
+    showNotification(`Selected: ${itemData.name}`);
+  };
+
   const removeFromCart = (id: string) => {
     let removedName: string | null = null;
 
@@ -133,6 +159,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value: CartContextType = {
     items,
     addToCart,
+    selectPackage,
     removeFromCart,
     updateQuantity,
     clearCart,

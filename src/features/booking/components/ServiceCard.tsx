@@ -44,21 +44,27 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
   const [isCooldown, setIsCooldown] = useState(false);
   const cartItem = items.find((i) => i.itemId === service.id);
 
-  const handleAddToCart = () => {
+  const handleAction = () => {
     if (isCooldown) return;
     setIsCooldown(true);
     setTimeout(() => setIsCooldown(false), 300);
 
+    if (service.pricingType === 'quote') {
+      if (onInquire) {
+        onInquire(service);
+      }
+      return;
+    }
+
     const isDishwashing = service.category === 'add_on' || service.name.toLowerCase().includes('dish');
-    const isQuote = service.pricingType === 'quote';
 
     addToCart({
       itemId: service.id,
       name: service.name,
       category: service.categoryLabel,
-      price: isDishwashing ? 3000 : isQuote ? null : 20000,
+      price: isDishwashing ? 3000 : 20000,
       formattedPrice: service.displayPrice,
-      isQuote: isQuote,
+      isQuote: false,
       features: service.features,
       itemType: 'service',
     });
@@ -102,32 +108,25 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
       <div className="cq-service-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           type="button"
-          onClick={handleAddToCart}
+          onClick={handleAction}
           disabled={isCooldown}
           className="cq-btn cq-btn-primary cq-service-btn"
           id={`add-service-${service.id}`}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          <ShoppingCartIcon size={16} />
-          <span>
-            {cartItem
-              ? `In Cart (Qty: ${cartItem.quantity})`
-              : service.pricingType === 'quote'
-              ? 'Add Quote Request to Cart'
-              : 'Add to Cart'}
-          </span>
+          {service.pricingType === 'quote' ? (
+            <span>Request Custom Quote →</span>
+          ) : (
+            <>
+              <ShoppingCartIcon size={16} />
+              <span>
+                {cartItem
+                  ? `In Cart (Qty: ${cartItem.quantity})`
+                  : 'Add to Cart'}
+              </span>
+            </>
+          )}
         </button>
-
-        {onInquire && (
-          <button
-            type="button"
-            onClick={() => onInquire(service)}
-            className="cq-btn cq-btn-outline"
-            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
-          >
-            Direct Inquiry →
-          </button>
-        )}
       </div>
     </div>
   );
