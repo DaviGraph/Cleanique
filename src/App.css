@@ -1753,6 +1753,209 @@
   color: #102A29;
 }
 
+/* ==========================================================================
+   Contact Section Styles
+   ========================================================================== */
+.cq-contact-section {
+  padding: 90px 0;
+  background-color: var(--cq-off-white);
+  border-top: 1px solid var(--cq-border);
+  width: 100%;
+}
+
+.cq-contact-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+  align-items: start;
+  width: 100%;
+}
+
+.cq-contact-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cq-contact-card {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.cq-contact-card:hover {
+  border-color: var(--cq-turquoise);
+  box-shadow: var(--shadow-card);
+}
+
+.cq-contact-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background-color: var(--cq-turquoise-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cq-contact-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cq-contact-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cq-text-muted);
+  margin-bottom: 2px;
+}
+
+.cq-contact-val {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--cq-deep-teal);
+  font-family: var(--font-display);
+  word-break: break-word;
+}
+
+.cq-contact-link {
+  color: var(--cq-deep-teal);
+  transition: color var(--transition-fast);
+}
+
+.cq-contact-link:hover {
+  color: var(--cq-turquoise-hover);
+  text-decoration: underline;
+}
+
+.cq-contact-subval {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cq-deep-teal);
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.cq-contact-hint {
+  font-size: 0.82rem;
+  color: var(--cq-text-muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.cq-contact-action-btn {
+  margin-top: 12px;
+  align-self: flex-start;
+}
+
+.cq-btn-wa {
+  background-color: #25D366;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+
+.cq-btn-wa:hover {
+  background-color: #20bd5a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+}
+
+.cq-contact-form-col {
+  width: 100%;
+}
+
+.cq-contact-form-box {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.cq-contact-form-header {
+  margin-bottom: 24px;
+}
+
+.cq-contact-form-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--cq-deep-teal);
+  margin-bottom: 8px;
+}
+
+.cq-contact-form-desc {
+  font-size: 0.92rem;
+  color: var(--cq-text-muted);
+  line-height: 1.5;
+}
+
+.cq-contact-submit-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.cq-contact-success {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.cq-contact-success-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--cq-turquoise-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.cq-contact-success-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--cq-deep-teal);
+  margin-bottom: 8px;
+}
+
+.cq-contact-success-text {
+  font-size: 0.95rem;
+  color: var(--cq-text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .cq-contact-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .cq-contact-form-box {
+    padding: 24px 18px;
+  }
+}
+
 /* Form Styles */
 .cq-form-layout {
   display: grid;

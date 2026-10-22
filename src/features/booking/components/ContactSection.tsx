@@ -113,7 +113,7 @@ export const ContactSection: React.FC = () => {
               <div className="cq-contact-form-header">
                 <h3 className="cq-contact-form-title">Send Us a Direct Message</h3>
                 <p className="cq-contact-form-desc">
-                  Leave your details and question. We'll answer prompt with customized recommendations.
+                  Leave your details and question. We'll answer promptly with customized recommendations.
                 </p>
               </div>
 
