@@ -387,14 +387,14 @@ export const BookingStatusPage: React.FC = () => {
                       <dd>{booking.scheduled_time}</dd>
                     </div>
                   )}
-                  <div className="cq-meta-row" style={{ gridColumn: 'span 2' }}>
+                  <div className="cq-meta-row cq-meta-row-full">
                     <dt style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <MapPinIcon size={14} color="#888" /> Service Address
                     </dt>
                     <dd>{booking.service_address}</dd>
                   </div>
                   {booking.quote_details && (
-                    <div className="cq-meta-row" style={{ gridColumn: 'span 2' }}>
+                    <div className="cq-meta-row cq-meta-row-full">
                       <dt>Space Details</dt>
                       <dd>{booking.quote_details}</dd>
                     </div>

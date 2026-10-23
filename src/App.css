@@ -2059,6 +2059,441 @@
   }
 }
 
+/* ==========================================================================
+   Payment Instructions & Booking Confirmation Result Card Styles
+   ========================================================================== */
+.cq-payment-instructions-card,
+.cq-result-card {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-xl);
+  padding: 36px;
+  box-shadow: var(--shadow-lg);
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.cq-payment-header,
+.cq-result-header {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+
+.cq-payment-icon-badge,
+.cq-result-icon-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: var(--cq-turquoise-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.cq-payment-title,
+.cq-result-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  font-weight: 800;
+  color: var(--cq-deep-teal);
+  margin-top: 14px;
+  margin-bottom: 12px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.cq-payment-subtitle,
+.cq-result-subtitle {
+  font-size: 0.98rem;
+  color: var(--cq-text-muted);
+  line-height: 1.6;
+}
+
+/* Payment Summary Grid (Reference & Financials) */
+.cq-payment-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.cq-payment-ref-card {
+  background-color: var(--cq-off-white);
+  border: 1.5px dashed var(--cq-turquoise);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cq-payment-box-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cq-text-muted);
+}
+
+.cq-ref-display-row,
+.cq-reference-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cq-ref-display-code,
+.cq-reference-code {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--cq-deep-teal);
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+
+.cq-payment-box-hint,
+.cq-reference-note {
+  font-size: 0.78rem;
+  color: var(--cq-text-muted);
+}
+
+.cq-payment-amounts-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cq-amount-deposit-box,
+.cq-amount-total-box {
+  background-color: var(--cq-off-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cq-amount-deposit-box {
+  border-color: rgba(46, 205, 191, 0.4);
+  background-color: rgba(46, 205, 191, 0.05);
+}
+
+.cq-amount-meta-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cq-text-muted);
+}
+
+.cq-amount-meta-val {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--cq-deep-teal);
+}
+
+.cq-val-deposit {
+  color: var(--cq-turquoise-hover);
+  font-size: 1.35rem;
+}
+
+.cq-amount-meta-sub {
+  font-size: 0.72rem;
+  color: var(--cq-text-muted);
+  line-height: 1.3;
+}
+
+/* Booking Summary Meta Details Card */
+.cq-booking-meta-card {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+
+.cq-meta-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cq-deep-teal);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cq-border);
+}
+
+.cq-meta-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.cq-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cq-meta-row-full {
+  grid-column: 1 / -1;
+}
+
+.cq-meta-list dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cq-text-muted);
+  margin: 0;
+}
+
+.cq-meta-list dd {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cq-deep-teal);
+  margin: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Bank Details Card Formatting */
+.cq-bank-card {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.cq-bank-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cq-bank-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--cq-turquoise-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cq-bank-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cq-deep-teal);
+  margin-bottom: 4px;
+}
+
+.cq-bank-subtitle {
+  font-size: 0.85rem;
+  color: var(--cq-text-muted);
+}
+
+.cq-bank-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cq-bank-field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--cq-off-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-md);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cq-bank-field-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cq-bank-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cq-text-muted);
+}
+
+.cq-bank-val {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--cq-deep-teal);
+  word-break: break-word;
+}
+
+.cq-bank-val-acc {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+}
+
+.cq-copy-btn {
+  background-color: rgba(46, 205, 191, 0.12);
+  color: var(--cq-deep-teal);
+  border: 1px solid rgba(46, 205, 191, 0.3);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.cq-copy-btn:hover {
+  background-color: var(--cq-turquoise);
+  color: var(--cq-deep-teal);
+}
+
+.cq-narration-box {
+  background-color: #fff8f6;
+  border: 1px solid #ffd8cf;
+  padding: 16px;
+  border-radius: var(--radius-md);
+}
+
+.cq-narration-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #c2410c;
+  background-color: #ffedd5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.cq-narration-text {
+  font-size: 0.85rem;
+  color: var(--cq-deep-teal);
+  line-height: 1.45;
+}
+
+/* Status Link Card */
+.cq-status-link-card {
+  background-color: var(--cq-off-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+
+.cq-status-link-tag {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--cq-turquoise-dark);
+}
+
+.cq-status-link-desc {
+  font-size: 0.85rem;
+  color: var(--cq-text-muted);
+  margin: 6px 0 14px;
+}
+
+.cq-status-link-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cq-status-link-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  color: var(--cq-deep-teal);
+}
+
+.cq-status-direct-link {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--cq-turquoise-dark);
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .cq-payment-instructions-card,
+  .cq-result-card {
+    padding: 24px 18px;
+  }
+
+  .cq-payment-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .cq-payment-amounts-card {
+    grid-template-columns: 1fr;
+  }
+
+  .cq-meta-list {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .cq-meta-row-full {
+    grid-column: 1;
+  }
+
+  .cq-status-link-input-row {
+    flex-direction: column;
+  }
+
+  .cq-status-copy-btn {
+    width: 100%;
+  }
+}
+
 /* Form Styles */
 .cq-form-layout {
   display: grid;
