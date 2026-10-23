@@ -85,14 +85,29 @@ describe('Status Label Mapping', () => {
   });
 });
 
+interface TestCartItem {
+  id: string;
+  itemId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  itemType: string;
+}
+
+interface TestPackageInput {
+  id: string;
+  name: string;
+  price: number;
+}
+
 describe('Cart Total Calculation and Selection', () => {
   function calculateTotal(items: { price: number; quantity: number }[]) {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }
 
-  function selectPackage(currentItems: any[], pkg: any) {
+  function selectPackage(currentItems: TestCartItem[], pkg: TestPackageInput): TestCartItem[] {
     const nonPackageItems = currentItems.filter((i) => i.itemType !== 'package');
-    const newItem = {
+    const newItem: TestCartItem = {
       id: pkg.id,
       itemId: pkg.id,
       name: pkg.name,
@@ -114,10 +129,66 @@ describe('Cart Total Calculation and Selection', () => {
   });
 
   it('replaces existing package on explicit Book Now selection', () => {
-    let cart = [{ id: 'pkg_1', itemId: 'pkg_1', name: 'Single Room', price: 20000, quantity: 1, itemType: 'package' }];
-    cart = selectPackage(cart, { id: 'pkg_2', name: '2 Bedroom', price: 35000 });
+    let cart: TestCartItem[] = [{ id: 'pkg_1', itemId: 'pkg_1', name: 'Single Room', price: 20000, quantity: 1, itemType: 'package' }];
+    cart = selectPackage(cart, { id: 'pkg_2', name: '2 Bedroom', price: 50000 });
     expect(cart.length).toBe(1);
     expect(cart[0].itemId).toBe('pkg_2');
+    expect(cart[0].price).toBe(50000);
     expect(cart[0].quantity).toBe(1);
+  });
+
+  it('prevents accidental duplicate packages on repeated Book Now clicks', () => {
+    let cart: TestCartItem[] = [];
+    // Click 1
+    cart = selectPackage(cart, { id: 'pkg_self_contained', name: 'Self-Contained', price: 35000 });
+    // Click 2
+    cart = selectPackage(cart, { id: 'pkg_self_contained', name: 'Self-Contained', price: 35000 });
+    // Click 3
+    cart = selectPackage(cart, { id: 'pkg_self_contained', name: 'Self-Contained', price: 35000 });
+
+    expect(cart.length).toBe(1);
+    expect(cart[0].itemId).toBe('pkg_self_contained');
+    expect(cart[0].quantity).toBe(1);
+    expect(calculateTotal(cart)).toBe(35000);
+  });
+
+  it('keeps optional add-ons unselected until explicitly added', () => {
+    let cart: TestCartItem[] = [];
+    cart = selectPackage(cart, { id: 'pkg_three_bedroom', name: 'Three-Bedroom', price: 65000 });
+
+    // Optional dishwashing add-on is NOT automatically added
+    const hasDishwashing = cart.some((i) => i.name.toLowerCase().includes('dish'));
+    expect(hasDishwashing).toBe(false);
+    expect(calculateTotal(cart)).toBe(65000);
+
+    // Customer explicitly adds Dishwashing (starts at 3,000)
+    cart.push({
+      id: 'srv_dishwashing',
+      itemId: 'srv_dishwashing',
+      name: 'Dishwashing Add-on',
+      price: 3000,
+      quantity: 1,
+      itemType: 'service',
+    });
+
+    expect(cart.length).toBe(2);
+    expect(calculateTotal(cart)).toBe(68000);
+    expect(Math.round(calculateTotal(cart) * 0.5)).toBe(34000);
+  });
+
+  it('preserves approved prices for all residential tiers', () => {
+    const tierPrices: Record<string, number> = {
+      'Single Room': 20000,
+      'Bedsitter': 25000,
+      'Self-Contained': 35000,
+      'Two-Bedroom': 50000,
+      'Three-Bedroom': 65000,
+    };
+
+    Object.entries(tierPrices).forEach(([tier, price]) => {
+      const cart = selectPackage([], { id: `pkg_${tier}`, name: tier, price });
+      expect(cart[0].price).toBe(price);
+      expect(calculateTotal(cart)).toBe(price);
+    });
   });
 });

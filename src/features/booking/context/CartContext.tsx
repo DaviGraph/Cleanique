@@ -35,10 +35,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    let isNewItem = false;
-    let updatedQty = 1;
+    // Packages represent the residence type and replace any existing residential package
+    if (itemData.itemType === 'package') {
+      selectPackage(itemData);
+      return true;
+    }
 
-    // Pure functional state update without side effects inside the updater
     setItems((prev) => {
       const existingIdx = prev.findIndex(
         (i) => i.itemId === itemData.itemId || i.name === itemData.name
@@ -47,14 +49,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existingIdx >= 0) {
         const next = [...prev];
         const addQty = itemData.quantity || 1;
-        updatedQty = next[existingIdx].quantity + addQty;
         next[existingIdx] = {
           ...next[existingIdx],
-          quantity: updatedQty,
+          quantity: next[existingIdx].quantity + addQty,
         };
         return next;
       } else {
-        isNewItem = true;
         const newItem: CartItem = {
           id: itemData.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           itemId: itemData.itemId,
@@ -65,19 +65,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           quantity: itemData.quantity || 1,
           isQuote: false,
           features: itemData.features,
-          itemType: itemData.itemType || 'package',
+          itemType: itemData.itemType || 'service',
         };
         return [...prev, newItem];
       }
     });
 
-    // Side effect triggers strictly outside the state updater
-    if (isNewItem) {
-      showNotification(`Added: ${itemData.name}`);
-    } else {
-      showNotification(`Updated: ${itemData.name} (Qty: ${updatedQty})`);
-    }
-
+    showNotification(`Added: ${itemData.name}`);
     return true;
   };
 

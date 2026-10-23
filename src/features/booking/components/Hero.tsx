@@ -10,27 +10,27 @@ export const Hero: React.FC = () => {
         <div className="cq-hero-badge-wrap">
           <span className="cq-badge cq-badge-teal cq-hero-badge">
             <SparklesIcon size={14} color="#2ECDBF" />
-            Spotless Perfection • Zero Compromise
+            Premium Hygiene &amp; Facility Care &bull; Delta State, Nigeria
           </span>
         </div>
 
         <h1 className="cq-hero-title">
-          Pristine Living & Workspaces,{' '}
+          Pristine Living &amp; Workspaces,{' '}
           <span className="cq-hero-title-highlight">Handled with Precision</span>
         </h1>
 
         <p className="cq-hero-description">
-          Experience meticulous residential apartment cleaning with guaranteed upfront pricing,
-          plus bespoke quotes for offices, deep cleaning, and post-construction projects.
+          Professional residential apartment cleaning with transparent flat-rate pricing,
+          plus bespoke custom quotes for offices, deep cleaning, and post-construction projects across Delta State.
         </p>
 
         <div className="cq-hero-actions">
-          <Link to="/book" className="cq-btn cq-btn-primary cq-hero-btn">
-            Book a Clean Now
+          <Link to="/book" className="cq-btn cq-btn-primary cq-hero-btn" id="hero-book-btn">
+            <span>Book a Cleaning</span>
             <ArrowRightIcon size={16} />
           </Link>
-          <a href="#services" className="cq-btn cq-btn-outline-white cq-hero-btn">
-            Commercial & Custom Quotes
+          <a href="#services" className="cq-btn cq-btn-outline-white cq-hero-btn" id="hero-services-btn">
+            Explore Services
           </a>
         </div>
 

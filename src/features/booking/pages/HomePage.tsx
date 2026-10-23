@@ -6,6 +6,7 @@ import { Navbar } from '../components/Navbar';
 import { Hero } from '../components/Hero';
 import { PackagesSection } from '../components/PackagesSection';
 import { ServicesSection } from '../components/ServicesSection';
+import { HowItWorksSection } from '../components/HowItWorksSection';
 import { TrustSection } from '../components/TrustSection';
 import { ContactSection } from '../components/ContactSection';
 import { Footer } from '../components/Footer';
@@ -84,6 +85,8 @@ export const HomePage: React.FC = () => {
               isLoading={isLoading}
               onInquireService={handleInquireService}
             />
+
+            <HowItWorksSection />
 
             <TrustSection />
 
