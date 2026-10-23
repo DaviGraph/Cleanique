@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { bookingCustomerDetailsSchema } from './bookingValidation';
-import { formatStatusLabel } from './bookingApi';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { bookingCustomerDetailsSchema, quoteCustomerDetailsSchema } from './bookingValidation';
+import { formatStatusLabel, createBooking } from './bookingApi';
+import { supabase } from '../../../lib/supabaseClient';
 
 describe('Validation Schemas', () => {
   it('requires customer email', () => {
@@ -190,5 +191,186 @@ describe('Cart Total Calculation and Selection', () => {
       expect(cart[0].price).toBe(price);
       expect(calculateTotal(cart)).toBe(price);
     });
+  });
+});
+
+describe('createBooking RPC calls and Quote Requests', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const validQuotePayloadBase = {
+    customerName: 'Chinedu Okafor',
+    customerPhone: '08031234567',
+    customerEmail: 'chinedu@example.com',
+    serviceAddress: 'Victoria Island, Lagos',
+    scheduledDate: '2029-12-31',
+    quoteDetails: 'We have a 3-floor office building needing deep sanitization.',
+  };
+
+  it('submitting a quote for "office" calls rpc("create_booking") with p_service_slug "office", p_items null, and p_quote_details set', async () => {
+    const rpcSpy = vi.spyOn(supabase, 'rpc').mockImplementation((fnName: string) => {
+      if (fnName === 'create_booking') {
+        return Promise.resolve({
+          data: [{ reference: 'CLQ-OFF123', access_token: 'tok-off123', booking_status: 'quote_requested' }],
+          error: null,
+        }) as any;
+      }
+      if (fnName === 'get_booking_status') {
+        return Promise.resolve({
+          data: [{ booking_status: 'quote_requested', is_quote: true, service_name: 'Office Cleaning' }],
+          error: null,
+        }) as any;
+      }
+      if (fnName === 'get_booking_items') {
+        return Promise.resolve({ data: [], error: null }) as any;
+      }
+      return Promise.resolve({ data: null, error: null }) as any;
+    });
+
+    const res = await createBooking({
+      ...validQuotePayloadBase,
+      serviceSlug: 'office',
+    });
+
+    expect(rpcSpy).toHaveBeenCalled();
+    const createBookingCall = rpcSpy.mock.calls.find((call) => call[0] === 'create_booking');
+    expect(createBookingCall).toBeDefined();
+
+    const args = createBookingCall![1];
+    expect(args).toMatchObject({
+      p_service_slug: 'office',
+      p_items: null,
+      p_quote_details: 'We have a 3-floor office building needing deep sanitization.',
+    });
+    expect(res.reference).toBe('CLQ-OFF123');
+    expect(res.is_quote).toBe(true);
+  });
+
+  it('works identically for each of the six quote slugs', async () => {
+    const quoteSlugs = [
+      'office',
+      'commercial',
+      'move-in-out',
+      'post-construction',
+      'deep-cleaning',
+      'dishwashing',
+    ];
+
+    for (const slug of quoteSlugs) {
+      vi.restoreAllMocks();
+      const rpcSpy = vi.spyOn(supabase, 'rpc').mockImplementation((fnName: string) => {
+        if (fnName === 'create_booking') {
+          return Promise.resolve({
+            data: [{ reference: `CLQ-${slug.toUpperCase()}`, access_token: 'tok-123', booking_status: 'quote_requested' }],
+            error: null,
+          }) as any;
+        }
+        if (fnName === 'get_booking_status') {
+          return Promise.resolve({
+            data: [{ booking_status: 'quote_requested', is_quote: true }],
+            error: null,
+          }) as any;
+        }
+        if (fnName === 'get_booking_items') {
+          return Promise.resolve({ data: [], error: null }) as any;
+        }
+        return Promise.resolve({ data: null, error: null }) as any;
+      });
+
+      const res = await createBooking({
+        ...validQuotePayloadBase,
+        serviceSlug: slug,
+        quoteDetails: `Details for service ${slug} request.`,
+      });
+
+      const createBookingCall = rpcSpy.mock.calls.find((call) => call[0] === 'create_booking');
+      expect(createBookingCall).toBeDefined();
+      const args = createBookingCall![1];
+      expect(args.p_service_slug).toBe(slug);
+      expect(args.p_items).toBeNull();
+      expect(args.p_quote_details).toBe(`Details for service ${slug} request.`);
+      expect(res.is_quote).toBe(true);
+    }
+  });
+
+  it('submitting a quote with description under 5 characters fails validation', () => {
+    const invalidData = {
+      ...validQuotePayloadBase,
+      quoteDetails: '1234', // 4 characters
+    };
+    const result = quoteCustomerDetailsSchema.safeParse(invalidData);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.quoteDetails).toBeDefined();
+    }
+  });
+
+  it('submitting fixed-price flow sends p_service_slug "residential" with items', async () => {
+    const rpcSpy = vi.spyOn(supabase, 'rpc').mockImplementation((fnName: string) => {
+      if (fnName === 'create_booking') {
+        return Promise.resolve({
+          data: [{ reference: 'CLQ-RES123', access_token: 'tok-res123', booking_status: 'pending_payment' }],
+          error: null,
+        }) as any;
+      }
+      if (fnName === 'get_booking_status') {
+        return Promise.resolve({
+          data: [{ booking_status: 'pending_payment', is_quote: false, service_name: 'Residential Cleaning' }],
+          error: null,
+        }) as any;
+      }
+      if (fnName === 'get_booking_items') {
+        return Promise.resolve({ data: [], error: null }) as any;
+      }
+      return Promise.resolve({ data: null, error: null }) as any;
+    });
+
+    const res = await createBooking({
+      customerName: 'Chinedu Okafor',
+      customerPhone: '08031234567',
+      customerEmail: 'chinedu@example.com',
+      serviceAddress: 'Victoria Island, Lagos',
+      scheduledDate: '2029-12-31',
+      serviceSlug: 'residential',
+      packageId: 'pkg_self_contained',
+      items: [
+        {
+          id: 'pkg_self_contained',
+          name: 'Self-Contained',
+          quantity: 1,
+          price: 35000,
+          formattedPrice: '₦35,000',
+          isQuote: false,
+        },
+      ],
+    });
+
+    const createBookingCall = rpcSpy.mock.calls.find((call) => call[0] === 'create_booking');
+    expect(createBookingCall).toBeDefined();
+    const args = createBookingCall![1];
+    expect(args.p_service_slug).toBe('residential');
+    expect(Array.isArray(args.p_items)).toBe(true);
+    expect(args.p_items.length).toBeGreaterThan(0);
+    expect(res.is_quote).toBe(false);
+  });
+
+  it('maps raw database error "Choose at least one package" to a friendly message', async () => {
+    vi.spyOn(supabase, 'rpc').mockImplementation((fnName: string) => {
+      if (fnName === 'create_booking') {
+        return Promise.resolve({
+          data: null,
+          error: { message: 'Choose at least one package' },
+        }) as any;
+      }
+      return Promise.resolve({ data: null, error: null }) as any;
+    });
+
+    await expect(
+      createBooking({
+        ...validQuotePayloadBase,
+        serviceSlug: 'office',
+      })
+    ).rejects.toThrow('Please choose a service and try again.');
   });
 });
