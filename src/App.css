@@ -158,33 +158,129 @@
   border: 1px solid var(--cq-turquoise);
 }
 
+.cq-brand-logo-img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(46, 205, 191, 0.35);
+  flex-shrink: 0;
+  transition: transform var(--transition-bounce);
+}
+
+.cq-brand:hover .cq-brand-logo-img {
+  transform: scale(1.05);
+}
+
+.cq-mobile-nav-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  align-items: center;
+  justify-content: center;
+  color: var(--cq-deep-teal);
+  transition: background 0.2s ease;
+}
+
+.cq-mobile-nav-toggle:hover {
+  background: rgba(46, 205, 191, 0.15);
+}
+
+.cq-mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--cq-border);
+  box-shadow: 0 12px 30px rgba(16, 42, 41, 0.12);
+  padding: 20px 24px;
+  z-index: 99;
+  animation: cqSlideDown 0.25s ease-out forwards;
+}
+
+@keyframes cqSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cq-mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cq-mobile-nav-link {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cq-deep-teal);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cq-border-light);
+  transition: color 0.2s ease;
+}
+
+.cq-mobile-nav-link:hover {
+  color: var(--cq-turquoise-hover);
+}
+
+.cq-mobile-menu-cta-wrap {
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.cq-mobile-menu-cta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .cq-mobile-nav-toggle {
+    display: flex;
+  }
+}
+
 @media (max-width: 640px) {
   .cq-brand-tag {
     display: none !important;
   }
   .cq-navbar-inner {
     height: 60px;
-    padding-left: 8px;
-    padding-right: 8px;
-    gap: 6px;
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 8px;
   }
   .cq-brand {
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
   }
-  .cq-brand-icon {
-    width: 32px;
-    height: 32px;
+  .cq-brand-logo-img {
+    width: 36px;
+    height: 36px;
   }
   .cq-brand-name {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
   }
   .cq-nav-actions {
-    gap: 6px;
+    gap: 8px;
   }
   .cq-nav-cta {
-    padding: 7px 12px;
-    font-size: 0.8rem;
+    padding: 8px 14px;
+    font-size: 0.82rem;
   }
   .cq-nav-cart-btn {
     padding: 6px 10px;
@@ -546,15 +642,18 @@
 }
 
 .cq-booking-tab-btn {
-  flex: 1 1 50%;
-  width: 50%;
+  /* Explicit overrides of .cq-btn to guarantee 50% width */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
   min-height: 48px;
-  border-radius: 8px;
+  border-radius: 8px !important;
   font-size: 0.88rem;
   font-weight: 700;
   white-space: normal;
   word-wrap: break-word;
-  padding: 10px 8px;
+  overflow-wrap: anywhere;
+  padding: 10px 8px !important;
   text-align: center;
   display: flex;
   align-items: center;
@@ -562,6 +661,7 @@
   line-height: 1.25;
   border: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -654,7 +754,9 @@
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--cq-text-muted);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .cq-progress-step.is-active .cq-step-label {
@@ -968,7 +1070,7 @@
 
 .cq-admin-search-wrap {
   flex: 1;
-  min-width: 240px;
+  min-width: 0;
   width: 100%;
 }
 
@@ -1000,8 +1102,8 @@
 .cq-admin-filter-select {
   padding: 8px 14px;
   font-size: 0.85rem;
-  width: auto;
-  min-width: 150px;
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -1039,19 +1141,18 @@
 }
 
 @media (max-width: 640px) {
+  /* 2-column stat grid fits on small screens without clipping */
   .cq-admin-stats-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
+  /* Keep booking tabs side-by-side at all sizes — they're already 50% each */
   .cq-booking-tabs {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
   }
   .cq-booking-tab-btn {
-    width: 100%;
-    flex: 1 1 100%;
-    min-height: 44px;
-    padding: 10px 12px;
-    font-size: 0.85rem;
+    min-height: 48px;
+    font-size: 0.82rem;
+    padding: 10px 6px !important;
   }
   .cq-pkg-card,
   .cq-service-card,
@@ -1328,21 +1429,22 @@
 /* Floating Cart Button */
 .cq-floating-cart-btn {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  right: 16px;
   z-index: 999;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #102A29;
   border: 1.5px solid #2ECDBF;
   color: #F5F9F8;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border-radius: 9999px;
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(16, 42, 41, 0.45), 0 0 16px rgba(46, 205, 191, 0.3);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   animation: cq-bounce-in 0.4s ease-out;
+  max-width: calc(100vw - 32px);
 }
 
 @keyframes cq-bounce-in {
@@ -1985,3 +2087,99 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   How It Works Section
+   ========================================================================== */
+.cq-how-it-works-section {
+  padding: 90px 0;
+  background-color: var(--cq-off-white);
+  border-top: 1px solid var(--cq-border);
+  border-bottom: 1px solid var(--cq-border);
+  width: 100%;
+}
+
+.cq-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.cq-step-card {
+  background-color: var(--cq-white);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--radius-lg);
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.cq-step-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--cq-turquoise);
+  box-shadow: var(--shadow-md);
+}
+
+.cq-step-number {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: rgba(46, 205, 191, 0.25);
+  line-height: 1;
+}
+
+.cq-step-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background-color: var(--cq-turquoise-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.cq-step-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--cq-deep-teal);
+  margin-bottom: 12px;
+}
+
+.cq-step-card-desc {
+  font-size: 0.92rem;
+  color: var(--cq-text-muted);
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .cq-steps-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .cq-step-card {
+    padding: 28px 20px;
+  }
+}
+
+/* ==========================================================================
+   Selected Package Card Highlight & Add-ons Styling
+   ========================================================================== */
+.cq-pkg-card-selected {
+  border-color: var(--cq-turquoise) !important;
+  box-shadow: 0 0 0 3px rgba(46, 205, 191, 0.3), var(--shadow-md) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f4fbfa 100%) !important;
+}
+
+.cq-addons-box {
+  transition: border-color 0.2s ease;
+}
+

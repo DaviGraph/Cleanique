@@ -28,6 +28,7 @@ import {
   ChevronLeftIcon,
   ArrowRightIcon,
   SparklesIcon,
+  UtensilsIcon,
 } from '../components/Icons';
 
 export const BookingPage: React.FC = () => {
@@ -49,9 +50,6 @@ export const BookingPage: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
-
-  // Cooldown state for add button taps (300ms)
-  const [cooldownPackageId, setCooldownPackageId] = useState<string | null>(null);
 
   // Mode: 'package' for cart / fixed-price packages, 'quote' for custom quote services
   const [bookingMode, setBookingMode] = useState<'package' | 'quote'>('package');
@@ -90,6 +88,7 @@ export const BookingPage: React.FC = () => {
   ];
 
   const stepLabels = ['Select Service', 'Customer Details', 'Confirmation'];
+  const processedParamRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -110,7 +109,10 @@ export const BookingPage: React.FC = () => {
           const serviceQuery = searchParams.get('service');
           const stepQuery = searchParams.get('step');
 
-          if (packageQuery) {
+          const paramKey = `${packageQuery || ''}_${serviceQuery || ''}_${stepQuery || ''}`;
+
+          if (packageQuery && processedParamRef.current !== paramKey) {
+            processedParamRef.current = paramKey;
             const foundPkg = fetchedPackages.find(
               (p) => p.id === packageQuery || p.id === `pkg_${packageQuery}`
             );
@@ -131,9 +133,8 @@ export const BookingPage: React.FC = () => {
                 setCurrentStep(2);
               }
             }
-          }
-
-          if (serviceQuery) {
+          } else if (serviceQuery && processedParamRef.current !== paramKey) {
+            processedParamRef.current = paramKey;
             const foundService = fetchedServices.find(
               (s) => s.id === serviceQuery || s.id === `srv_${serviceQuery}`
             );
@@ -180,23 +181,6 @@ export const BookingPage: React.FC = () => {
         return next;
       });
     }
-  };
-
-  const handleAddPackageClick = (pkg: Package) => {
-    if (cooldownPackageId === pkg.id) return;
-    setCooldownPackageId(pkg.id);
-    setTimeout(() => setCooldownPackageId(null), 300);
-
-    addToCart({
-      itemId: pkg.id,
-      name: pkg.name,
-      category: 'Residential',
-      price: pkg.price,
-      formattedPrice: pkg.formattedPrice,
-      isQuote: false,
-      features: pkg.features,
-      itemType: 'package',
-    });
   };
 
   const handleProceedToDetails = () => {
@@ -393,11 +377,17 @@ export const BookingPage: React.FC = () => {
                   )}
 
                   {/* Packages Grid */}
-                  <div className="cq-pkg-grid" style={{ marginBottom: '40px' }}>
+                  <div className="cq-pkg-grid" style={{ marginBottom: '36px' }}>
                     {packages.map((pkg) => {
-                      const inCart = items.some((i) => i.itemId === pkg.id);
+                      const isSelected = items.some((i) => i.itemId === pkg.id && i.itemType === 'package');
                       return (
-                        <div key={pkg.id} className={`cq-pkg-card ${inCart ? 'is-selected' : ''}`}>
+                        <div key={pkg.id} className={`cq-pkg-card ${isSelected ? 'cq-pkg-card-selected is-selected' : ''}`}>
+                          {pkg.popular && (
+                            <div className="cq-pkg-popular-badge">
+                              <SparklesIcon size={14} color="#102A29" />
+                              <span>Most Popular</span>
+                            </div>
+                          )}
                           <div className="cq-pkg-header">
                             <span className="cq-pkg-recommended">{pkg.recommendedFor}</span>
                             <h3 className="cq-pkg-title">{pkg.name}</h3>
@@ -405,37 +395,115 @@ export const BookingPage: React.FC = () => {
                           </div>
                           <div className="cq-pkg-price-box">
                             <div className="cq-pkg-price-amount">{pkg.formattedPrice}</div>
-                            <div className="cq-pkg-price-guarantee">Display estimate &bull; Finalized by server</div>
+                            <div className="cq-pkg-price-guarantee">Approved Flat Rate &bull; Standard Clean</div>
                           </div>
                           <div className="cq-pkg-divider" />
                           <button
                             type="button"
-                            onClick={() => handleAddPackageClick(pkg)}
-                            disabled={cooldownPackageId === pkg.id}
-                            className="cq-btn cq-btn-primary cq-pkg-btn"
+                            onClick={() => {
+                              selectPackage({
+                                itemId: pkg.id,
+                                name: pkg.name,
+                                category: 'Residential',
+                                price: pkg.price,
+                                formattedPrice: pkg.formattedPrice,
+                                isQuote: false,
+                                features: pkg.features,
+                                itemType: 'package',
+                              });
+                            }}
+                            className={`cq-btn ${isSelected ? 'cq-btn-secondary' : 'cq-btn-primary'} cq-pkg-btn`}
+                            id={`select-package-${pkg.id}`}
                             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                           >
-                            <ShoppingCartIcon size={16} />
-                            <span>{inCart ? '+ Add Another Unit' : 'Add Package to Cart'}</span>
+                            {isSelected ? (
+                              <>
+                                <CheckIcon size={16} />
+                                <span>Selected</span>
+                              </>
+                            ) : (
+                              <span>Select Package</span>
+                            )}
                           </button>
                         </div>
                       );
                     })}
                   </div>
 
-                  {items.length > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '32px' }}>
-                      <button
-                        type="button"
-                        onClick={handleProceedToDetails}
-                        className="cq-btn cq-btn-primary"
-                        style={{ padding: '16px 36px', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', gap: '10px' }}
-                      >
-                        <span>Next Step: Enter Customer Details &amp; Schedule</span>
-                        <ArrowRightIcon size={18} />
-                      </button>
+                  {/* Optional Add-on: Dishwashing */}
+                  <div className="cq-addons-box" style={{ background: '#FFFFFF', border: '1px solid #DCE5E3', borderRadius: '16px', padding: '24px', marginBottom: '32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#102A29', margin: 0 }}>
+                          Optional Cleaning Add-Ons
+                        </h3>
+                        <p style={{ fontSize: '0.85rem', color: '#516d6a', margin: '4px 0 0 0' }}>
+                          Add extra services to your residential clean. Remains unselected unless you deliberately choose to add it.
+                        </p>
+                      </div>
+                      <span className="cq-badge cq-badge-turquoise">Optional</span>
                     </div>
-                  )}
+
+                    {(() => {
+                      const dishItem = items.find((i) => i.name.toLowerCase().includes('dish'));
+                      const isDishAdded = Boolean(dishItem);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', padding: '16px', background: '#F5F9F8', borderRadius: '12px', border: isDishAdded ? '2px solid #2ECDBF' : '1px solid #E1EDEA' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(46, 205, 191, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <UtensilsIcon size={22} color="#2ECDBF" />
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#102A29', fontSize: '1rem' }}>
+                                Dishwashing Service
+                              </div>
+                              <div style={{ fontSize: '0.82rem', color: '#516d6a' }}>
+                                Starts at ₦3,000 (final price depends on the quantity of dishes)
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isDishAdded && dishItem) {
+                                removeFromCart(dishItem.id);
+                              } else {
+                                addToCart({
+                                  itemId: 'srv_dishwashing',
+                                  name: 'Dishwashing Add-on',
+                                  category: 'Add-on',
+                                  price: 3000,
+                                  formattedPrice: 'Starts at ₦3,000',
+                                  isQuote: false,
+                                  itemType: 'service',
+                                });
+                              }
+                            }}
+                            className={`cq-btn ${isDishAdded ? 'cq-btn-secondary' : 'cq-btn-outline'}`}
+                            style={{ padding: '8px 18px', fontSize: '0.88rem' }}
+                            id="toggle-dishwashing-btn"
+                          >
+                            {isDishAdded ? '✓ Dishwashing Added (Remove)' : '+ Add Dishwashing (Starts at ₦3,000)'}
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Proceed CTA */}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '32px' }}>
+                    <button
+                      type="button"
+                      onClick={handleProceedToDetails}
+                      className="cq-btn cq-btn-primary"
+                      style={{ padding: '16px 36px', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', gap: '10px' }}
+                      id="proceed-to-details-btn"
+                    >
+                      <span>Next Step: Enter Customer Details &amp; Schedule</span>
+                      <ArrowRightIcon size={18} />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* QUOTE SERVICES SELECTION */

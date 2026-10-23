@@ -235,6 +235,23 @@ export const DEFAULT_SERVICES: Service[] = [
       'Dedicated supervisor & compliance checklist',
     ],
   },
+  {
+    id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
+    name: 'Dishwashing',
+    category: 'add_on',
+    categoryLabel: 'Add-On',
+    description: 'Manual dishwashing and kitchen utensil degreasing and sanitization. Final price depends on the quantity of dishes.',
+    pricingType: 'starting_at',
+    displayPrice: 'Starts at ₦3,000',
+    badge: 'Optional Add-on',
+    icon: 'utensils',
+    features: [
+      'Starts at ₦3,000 (final price depends on dish quantity)',
+      'Thorough grease removal & hot water sanitization',
+      'Cookware, plates, glassware & cutlery detailing',
+      'Safe drying & organized counter staging',
+    ],
+  },
 ];
 
 export const DEFAULT_BANK_DETAILS: BankDetails = {

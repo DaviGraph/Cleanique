@@ -95,24 +95,25 @@ export const PackageCard: React.FC<PackageCardProps> = ({ packageData, onSelect 
       <div className="cq-pkg-action" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           type="button"
-          onClick={handleAddToCart}
+          onClick={handleBookNow}
           disabled={isCooldown}
-          className={`cq-btn ${isPopular ? 'cq-btn-primary' : 'cq-btn-outline'} cq-pkg-btn`}
-          id={`add-package-${packageData.id}`}
+          className="cq-btn cq-btn-primary cq-pkg-btn"
+          id={`book-package-${packageData.id}`}
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          <ShoppingCartIcon size={16} />
-          <span>{cartItem ? `Add More (${cartItem.quantity} in Cart)` : 'Add to Cart'}</span>
+          <span>{cartItem ? 'Selected • Proceed to Book →' : 'Book Now →'}</span>
         </button>
 
         <button
           type="button"
-          onClick={handleBookNow}
+          onClick={handleAddToCart}
           disabled={isCooldown}
-          className="cq-btn cq-btn-secondary"
-          style={{ fontSize: '0.85rem', padding: '8px 14px' }}
+          className="cq-btn cq-btn-outline"
+          id={`add-package-${packageData.id}`}
+          style={{ fontSize: '0.85rem', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          Book Now →
+          <ShoppingCartIcon size={14} />
+          <span>{cartItem ? 'In Cart' : 'Add to Cart'}</span>
         </button>
       </div>
     </div>

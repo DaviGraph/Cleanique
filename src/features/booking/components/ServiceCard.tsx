@@ -44,6 +44,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
   const [isCooldown, setIsCooldown] = useState(false);
   const cartItem = items.find((i) => i.itemId === service.id);
 
+  const isResidentialOverview = service.category === 'residential' || service.name.toLowerCase().includes('residential');
+  const isDishwashing = service.category === 'add_on' || service.name.toLowerCase().includes('dish');
+
   const handleAction = () => {
     if (isCooldown) return;
     setIsCooldown(true);
@@ -56,13 +59,23 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
       return;
     }
 
-    const isDishwashing = service.category === 'add_on' || service.name.toLowerCase().includes('dish');
+    if (isResidentialOverview) {
+      // Guide customer to view and choose their specific residential apartment package
+      const pkgSection = document.getElementById('packages');
+      if (pkgSection) {
+        pkgSection.scrollIntoView({ behavior: 'smooth' });
+      } else if (onInquire) {
+        onInquire(service);
+      }
+      return;
+    }
 
+    // Dishwashing or explicit add-on only
     addToCart({
       itemId: service.id,
       name: service.name,
-      category: service.categoryLabel,
-      price: isDishwashing ? 3000 : 20000,
+      category: service.categoryLabel || 'Add-on',
+      price: isDishwashing ? 3000 : 3000,
       formattedPrice: service.displayPrice,
       isQuote: false,
       features: service.features,
@@ -115,7 +128,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onInquire }) 
           style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
           {service.pricingType === 'quote' ? (
-            <span>Request Custom Quote →</span>
+            <span>Request a Quote →</span>
+          ) : isResidentialOverview ? (
+            <span>Explore Residential Packages →</span>
           ) : (
             <>
               <ShoppingCartIcon size={16} />
