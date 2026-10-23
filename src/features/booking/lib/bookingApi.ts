@@ -136,6 +136,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: '3902a232-06a1-4a3b-a8f1-cdf9e6e92485',
     name: 'Standard Residential Cleaning',
+    slug: 'residential',
     category: 'residential',
     categoryLabel: 'Residential',
     description: 'Routine and package-based sanitization for rooms, bedsitters, self-contained units, and multi-bedroom apartments.',
@@ -153,6 +154,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: '6a4020c9-5361-447c-9e79-369087f4b10d',
     name: 'Deep Cleaning',
+    slug: 'deep-cleaning',
     category: 'specialized',
     categoryLabel: 'Specialized',
     description: 'An exhaustive, high-intensity clean targeting accumulated grime, hard water stains, hidden nooks, and high-touch areas.',
@@ -170,6 +172,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: 'afb4f891-dc8d-41ee-8e8b-07585901dcb2',
     name: 'Move-in / Move-out Cleaning',
+    slug: 'move-in-out',
     category: 'specialized',
     categoryLabel: 'Specialized',
     description: 'Ensure a pristine handover when transitioning properties. Perfect for landlords, tenants, and real estate managers.',
@@ -187,6 +190,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: '02a39f65-1e67-4851-8beb-b28bcbf5b285',
     name: 'Post-Construction Cleaning',
+    slug: 'post-construction',
     category: 'specialized',
     categoryLabel: 'Specialized',
     description: 'Heavy-duty post-renovation cleanup removing fine silica dust, paint splatters, adhesive residue, and building debris.',
@@ -204,6 +208,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: 'f5e0fb72-72b4-4d83-84a9-4d4530328821',
     name: 'Office Cleaning',
+    slug: 'office',
     category: 'commercial',
     categoryLabel: 'Commercial',
     description: 'Professional workspace hygiene maintaining productive, spotless work environments for corporate teams and studios.',
@@ -221,6 +226,7 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: '4cee048b-123c-476b-b590-140ffc953680',
     name: 'Commercial Cleaning',
+    slug: 'commercial',
     category: 'commercial',
     categoryLabel: 'Commercial',
     description: 'Large-scale cleaning solutions for retail stores, clinics, gyms, schools, and commercial facilities with strict hygiene protocols.',
@@ -238,10 +244,11 @@ export const DEFAULT_SERVICES: Service[] = [
   {
     id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
     name: 'Dishwashing',
+    slug: 'dishwashing',
     category: 'add_on',
     categoryLabel: 'Add-On',
     description: 'Manual dishwashing and kitchen utensil degreasing and sanitization. Final price depends on the quantity of dishes.',
-    pricingType: 'starting_at',
+    pricingType: 'quote',
     displayPrice: 'Starts at ₦3,000',
     badge: 'Optional Add-on',
     icon: 'utensils',
@@ -277,10 +284,12 @@ export async function getServices(): Promise<Service[]> {
         const fallback = DEFAULT_SERVICES.find(
           (s) => s.id === row.id || s.category === row.slug || s.name.toLowerCase() === row.name?.toLowerCase()
         );
+        const serviceSlug = row.slug || fallback?.slug || 'residential';
         return {
           id: row.id,
           name: row.name,
-          category: (row.slug || fallback?.category || 'residential') as Service['category'],
+          slug: serviceSlug,
+          category: (fallback?.category || 'residential') as Service['category'],
           categoryLabel: fallback?.categoryLabel || row.name,
           description: row.description || fallback?.description || '',
           pricingType: (row.pricing || fallback?.pricingType || 'quote') as Service['pricingType'],
@@ -298,9 +307,17 @@ export async function getServices(): Promise<Service[]> {
   return DEFAULT_SERVICES;
 }
 
-export async function getServiceById(id: string): Promise<Service | undefined> {
+export async function getServiceById(idOrSlug: string): Promise<Service | undefined> {
   const allServices = await getServices();
-  return allServices.find((s) => s.id === id || s.category === id || `srv_${s.category}` === id);
+  const target = idOrSlug.toLowerCase();
+  return allServices.find(
+    (s) =>
+      s.id.toLowerCase() === target ||
+      s.slug.toLowerCase() === target ||
+      s.category.toLowerCase() === target ||
+      `srv_${s.slug}`.toLowerCase() === target ||
+      `srv_${s.category}`.toLowerCase() === target
+  );
 }
 
 // ─── Packages ─────────────────────────────────────────────────────────────────
@@ -406,39 +423,47 @@ export async function createBooking(
     throw new Error('Please fill in all required booking details (Name, Phone, Email, Address, Preferred Date).');
   }
 
-  let serviceSlug = 'residential';
-  if (payload.serviceId) {
+  let serviceSlug = payload.serviceSlug || '';
+  if (!serviceSlug && payload.serviceId) {
     const sId = payload.serviceId.toLowerCase();
-    if (sId.includes('office')) serviceSlug = 'office';
-    else if (sId.includes('commercial')) serviceSlug = 'commercial';
-    else if (sId.includes('deep')) serviceSlug = 'deep-cleaning';
-    else if (sId.includes('move')) serviceSlug = 'move-in-out';
-    else if (sId.includes('construction') || sId.includes('post')) serviceSlug = 'post-construction';
-    else serviceSlug = 'residential';
+    if (sId === 'office' || sId.includes('office')) serviceSlug = 'office';
+    else if (sId === 'commercial' || sId.includes('commercial')) serviceSlug = 'commercial';
+    else if (sId === 'deep-cleaning' || sId.includes('deep')) serviceSlug = 'deep-cleaning';
+    else if (sId === 'move-in-out' || sId.includes('move')) serviceSlug = 'move-in-out';
+    else if (sId === 'post-construction' || sId.includes('construction') || sId.includes('post')) serviceSlug = 'post-construction';
+    else if (sId === 'dishwashing' || sId.includes('dish')) serviceSlug = 'dishwashing';
+    else if (sId === 'residential' || sId.includes('residential')) serviceSlug = 'residential';
+  }
+
+  if (!serviceSlug) {
+    serviceSlug = 'residential';
   }
 
   const isQuote = serviceSlug !== 'residential';
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  // Build p_items containing ONLY package_id and quantity (never prices or totals)
-  const itemsList = payload.items || [];
-  const p_items = isQuote
-    ? []
-    : itemsList.map((it) => {
-        const pkgUuid =
-          PACKAGE_UUID_MAP[it.id] ||
-          (uuidRegex.test(it.id) ? it.id : PACKAGE_UUID_MAP['pkg_self_contained']);
-        return {
-          package_id: pkgUuid,
-          quantity: it.quantity || 1,
-        };
-      });
+  // For a quote service: p_items = null (or omitted).
+  // For fixed service ("residential"): p_items = [{ package_id, quantity }].
+  let p_items: Array<{ package_id: string; quantity: number }> | null = null;
 
-  if (!isQuote && p_items.length === 0 && payload.packageId) {
-    const pkgUuid =
-      PACKAGE_UUID_MAP[payload.packageId] ||
-      (uuidRegex.test(payload.packageId) ? payload.packageId : PACKAGE_UUID_MAP['pkg_self_contained']);
-    p_items.push({ package_id: pkgUuid, quantity: 1 });
+  if (!isQuote) {
+    const itemsList = payload.items || [];
+    p_items = itemsList.map((it) => {
+      const pkgUuid =
+        PACKAGE_UUID_MAP[it.id] ||
+        (uuidRegex.test(it.id) ? it.id : PACKAGE_UUID_MAP['pkg_self_contained']);
+      return {
+        package_id: pkgUuid,
+        quantity: it.quantity || 1,
+      };
+    });
+
+    if (p_items.length === 0 && payload.packageId) {
+      const pkgUuid =
+        PACKAGE_UUID_MAP[payload.packageId] ||
+        (uuidRegex.test(payload.packageId) ? payload.packageId : PACKAGE_UUID_MAP['pkg_self_contained']);
+      p_items.push({ package_id: pkgUuid, quantity: 1 });
+    }
   }
 
   let res;
@@ -463,7 +488,11 @@ export async function createBooking(
 
   if (res.error) {
     console.error('create_booking RPC error:', res.error);
-    throw new Error(`Failed to create booking: ${res.error.message}`);
+    const errMessage = res.error.message || '';
+    if (errMessage.includes('Choose at least one package')) {
+      throw new Error('Please choose a service and try again.');
+    }
+    throw new Error(`Failed to create booking: ${errMessage}`);
   }
 
   const row = Array.isArray(res.data) ? res.data[0] : res.data;
@@ -480,7 +509,8 @@ export async function createBooking(
   let serverStatus: BookingStatus = isQuote ? 'pending_payment' : 'pending_payment';
 
   if (!isQuote) {
-    const computedTotal = itemsList.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 1), 0);
+    const itemsList = payload.items || [];
+    const computedTotal = itemsList.reduce((acc: number, item: CartItemSummary) => acc + (item.price || 0) * (item.quantity || 1), 0);
     serverTotal = computedTotal > 0 ? computedTotal : 35000;
     serverDeposit = Math.round(serverTotal * 0.5);
   }

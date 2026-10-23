@@ -135,8 +135,14 @@ export const BookingPage: React.FC = () => {
             }
           } else if (serviceQuery && processedParamRef.current !== paramKey) {
             processedParamRef.current = paramKey;
+            const queryLower = serviceQuery.toLowerCase();
             const foundService = fetchedServices.find(
-              (s) => s.id === serviceQuery || s.id === `srv_${serviceQuery}`
+              (s) =>
+                s.id.toLowerCase() === queryLower ||
+                s.slug.toLowerCase() === queryLower ||
+                s.category.toLowerCase() === queryLower ||
+                `srv_${s.slug}`.toLowerCase() === queryLower ||
+                `srv_${s.category}`.toLowerCase() === queryLower
             );
             if (foundService) {
               if (foundService.pricingType === 'quote') {
@@ -189,6 +195,10 @@ export const BookingPage: React.FC = () => {
       setSubmitError('Please add at least one residential cleaning package to your cart to proceed.');
       return;
     }
+    if (bookingMode === 'quote' && !selectedQuoteService) {
+      setSubmitError('Please choose a service and try again.');
+      return;
+    }
     setCurrentStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -204,13 +214,19 @@ export const BookingPage: React.FC = () => {
 
     if (isSubmitting) return; // Prevent double submission
 
-    if (bookingMode === 'package' && items.length === 0) {
+    const isQuoteMode = bookingMode === 'quote';
+
+    if (isQuoteMode && !selectedQuoteService) {
+      setSubmitError('Please choose a service and try again.');
+      return;
+    }
+
+    if (!isQuoteMode && items.length === 0) {
       setSubmitError('Your cart is empty. Please select a residential cleaning package.');
       return;
     }
 
     // Validate using Zod
-    const isQuoteMode = bookingMode === 'quote';
     const schema = isQuoteMode ? quoteCustomerDetailsSchema : bookingCustomerDetailsSchema;
     const result = schema.safeParse(formData);
 
@@ -246,7 +262,8 @@ export const BookingPage: React.FC = () => {
         notes: formData.notes.trim() || undefined,
         quoteDetails: isQuoteMode ? formData.quoteDetails.trim() : undefined,
         packageId: isQuoteMode ? undefined : primaryPackage?.itemId,
-        serviceId: isQuoteMode ? selectedQuoteService?.id || 'srv_specialized' : 'srv_residential',
+        serviceId: isQuoteMode ? selectedQuoteService?.id : 'srv_residential',
+        serviceSlug: isQuoteMode ? selectedQuoteService?.slug : 'residential',
         items: isQuoteMode
           ? undefined
           : items.map((it) => ({

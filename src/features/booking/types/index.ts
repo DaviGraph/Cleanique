@@ -5,6 +5,7 @@ export type ServiceCategory = 'residential' | 'commercial' | 'specialized' | 'ad
 export interface Service {
   id: string;
   name: string;
+  slug: string;
   category: ServiceCategory;
   categoryLabel: string;
   description: string;
@@ -38,6 +39,7 @@ export interface CreateBookingPayload {
   customerEmail?: string;
   customerWhatsapp?: string;
   serviceId?: string;
+  serviceSlug?: string;
   packageId?: string;
   serviceAddress: string;
   scheduledDate: string;

@@ -71,8 +71,8 @@ export const quoteCustomerDetailsSchema = bookingCustomerDetailsSchema.extend({
   quoteDetails: z
     .string()
     .trim()
-    .min(10, {
-      message: 'Please provide details about your space (e.g. square footage, condition, rooms) so we can prepare an accurate quote.',
+    .min(5, {
+      message: 'Please provide details about your space (at least 5 characters) so we can prepare an accurate quote.',
     }),
 });
 
